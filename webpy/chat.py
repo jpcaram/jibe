@@ -11,11 +11,21 @@ from typing import List, Dict
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 
+class OrfanWidgetError(Exception):
+    pass
+
+
+class NoSuchEvent(Exception):
+    pass
+
+
 class Widget:
 
     # event_handlers = {}
 
     def __init__(self, connection=None):
+
+        self.parent = None
 
         self.connection = connection
 
@@ -24,25 +34,66 @@ class Widget:
 
         self.children = []
 
-        self.event_handlers = {}
+        self.local_event_handlers = {}
+
+        self.subscribers = {}
 
     def html(self):
-        return ''
+        return '<widget id="_{{identifier}}"></widget>'.format(
+            identifier=self.identifier
+        )
 
     def __str__(self):
         return self.html()
 
     def on_message(self, msg):
-        """"""
+        """
+        Invoked when a message for this Widget is received from the browser.
+
+        :param msg:
+        :return:
+        """
         print(f'{self.__class__.__name__}.on_message()')
         print(f'   says: {msg}')
 
-        if 'event' in msg and msg['event'] in self.event_handlers:
-            self.event_handlers[msg['event']](msg)
+        if 'event' in msg and msg['event'] in self.local_event_handlers:
+            self.local_event_handlers[msg['event']](msg)
+
+    def message(self, msg):
+        """
+        Send a message to this widget's browser side.
+
+        :param msg:
+        :return:
+        """
+
+        msg['id'] = self.identifier
+
+        self.deliver(msg)
+
+    def deliver(self, msg):
+        """
+
+        :param msg:
+        :return:
+        """
+
+        try:
+            self.parent.deliver(msg)
+        except AttributeError:
+            raise OrfanWidgetError("This widget is not attached to an app.")
 
     # def event_handler(method, event_name):
     #     .event_handlers[event_name] = method
     #     return method
+
+    def register(self, event, handler):
+
+        try:
+            if handler not in self.subscribers[event]:
+                self.subscribers[event].append(handler)
+        except KeyError:
+            raise NoSuchEvent(event)
 
 
 class Button(Widget):
@@ -52,19 +103,28 @@ class Button(Widget):
     def __init__(self, connection=None):
         super().__init__(connection)
 
-        self.event_handlers = {
+        self.local_event_handlers = {
             'click': self.on_click
         }
 
+        self.subscribers['click'] = []
+
     def html(self):
         return Template("""
+        <widget id="_{{identifier}}">
         <button id="{{identifier}}">{{label}}</button>
         <script>
         $("#{{identifier}}").click( function( event ) {
           console.log({id:"{{identifier}}", event: 'click'});
           message({id:"{{identifier}}", event: 'click'});
         });
+        $("#{{identifier}}").on("message", function( evt, data ) {
+          console.log("message event for #{{identifier}}");
+          console.log(evt);
+          console.log(data);
+        });
         </script>
+        </widget>
         """).render(
             identifier=self.identifier,
             label=self.label
@@ -74,6 +134,9 @@ class Button(Widget):
     def on_click(self, msg):
         """"""
         print(f'{self.__class__.__name__}.on_click()')
+
+        for subscriber in self.subscribers['click']:
+            subscriber(self)
 
 
 class Input(Widget):
@@ -88,6 +151,7 @@ class Input(Widget):
 
     def html(self):
         return Template("""
+        <widget id="_{{identifier}}">
         <input id="{{identifier}}" type="text">
         <script>
         // Event: "change" - Change in the value in the input box.
@@ -96,7 +160,13 @@ class Input(Widget):
           console.log({id:"{{identifier}}", event: 'click', value: event.currentTarget.value});
           message({id:"{{identifier}}", event: 'click', value: event.currentTarget.value});
         });
+        $("#{{identifier}}").on("message", function( evt, data ) {
+          console.log("message event for #{{identifier}}");
+          console.log(evt);
+          console.log(data);
+        });
         </script>
+        </widget>
         """).render(
             identifier=self.identifier
         )
@@ -106,8 +176,9 @@ class Input(Widget):
         return self._value
 
     @value.setter
-    def value(self):
-        pass
+    def value(self, val):
+        print(f'{self.__class__.__name__}.value()')
+        self.message({'event': 'value'})
 
     def on_change(self, msg):
         """"""
@@ -174,6 +245,12 @@ class MainApp:
 
         self.uielements_by_id = MainApp.index_uielements(self.uielements)
 
+        # Adopt widgets.
+        for w in self.uielements:
+            w.parent = self
+
+        self.button.register('click', self.on_button_click)
+
     @staticmethod
     def index_uielements(elements=()):
         index = {}
@@ -214,10 +291,15 @@ class MainApp:
         {{inbox}}<BR>{{button}}
         """).render(inbox=self.inbox, button=self.button)
 
+    def deliver(self, msg):
+        print(f'{self.__class__.__name__}.deliver()')
+        self.wshandler.connection.write_message(json.dumps(msg))
+
     def on_inbox_change(self):
         pass
 
-    def on_button_click(self):
+    def on_button_click(self, source):
+        print(f'{self.__class__.__name__}.on_button_click()')
         self.inbox.value = "Hello!"
 
 

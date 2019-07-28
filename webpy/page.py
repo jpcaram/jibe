@@ -19,6 +19,10 @@ html = """
         ws.onmessage = function(evt) {
             var messageDict = JSON.parse(evt.data);
             console.log(messageDict);
+            
+            // Message format:
+            // {id: ..., event: ..., ...}
+            $("#" + messageDict.id).trigger("message", messageDict);
         };
         
         //ws.send(JSON.stringify({msg: "Page started!"}));
@@ -26,6 +30,10 @@ html = """
         function message(msg) {
             ws.send(JSON.stringify(msg));
         }
+        
+        var widgets = {};
+        
+        
     </script>
 </body>
 </html>
