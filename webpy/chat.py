@@ -11,6 +11,57 @@ from typing import List, Dict
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 
+def callback_method(func):
+    """
+    Used wrap methods such that _callbacks in the class
+    are called immediately before method.
+
+    :param func: Method to be wrapped.
+    :return: Wrapped method.
+    """
+    def notify(self, *args, **kwargs):
+        for callback in self._callbacks:
+            callback(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+    return notify
+
+
+class NotifyList(list):
+    """
+    Extends list to support a callback on change.
+    """
+    extend = callback_method(list.extend)
+    append = callback_method(list.append)
+    remove = callback_method(list.remove)
+    pop = callback_method(list.pop)
+    __delitem__ = callback_method(list.__delitem__)
+    __setitem__ = callback_method(list.__setitem__)
+    __iadd__ = callback_method(list.__iadd__)
+    __imul__ = callback_method(list.__imul__)
+
+    def __init__(self, *args):
+        list.__init__(self, *args)
+        self._callbacks = []
+
+
+def event_handler(*args):
+    """
+    Mark the method as an event handler. Simply sets the attribute
+    event_register to the given arguments. This attribute is then
+    checked by the constructor of the class.
+
+    :param args:
+    :return:
+    """
+    print(f'event_handler({args})')
+
+    def decorator(f):
+        print(f'decorator({f})')
+        f.event_register = tuple(args)
+        return f
+    return decorator
+
+
 class OrfanWidgetError(Exception):
     pass
 
@@ -21,25 +72,86 @@ class NoSuchEvent(Exception):
 
 class Widget:
 
-    # event_handlers = {}
-
-    def __init__(self, connection=None):
+    def __init__(self):
 
         self.parent = None
+        """Widgets pass messages up to their parent to reach the main App,
+        which sends the message to the browser.
+        """
 
-        self.connection = connection
+        self.identifier = ''.join(choice(letter) for _ in range(10))
+        """Unique identifier to find the browser counterpart."""
 
-        self.identifier = ''.join(choice(letter)
-                                  for _ in range(10))
-
-        self.children = []
+        self._children = []
+        """For composite widgets."""
 
         self.local_event_handlers = {}
+        """To define event handlers within the object."""
 
         self.subscribers = {}
+        """For others to benotified of events."""
+
+        # Process methods marked as event handlers.
+        for method_name in dir(self):
+            # Skip properties
+            if isinstance(getattr(self.__class__, method_name, None), property):
+                continue
+
+            method = getattr(self, method_name)
+
+            # Methods only.
+            if callable(method) and not method_name.startswith('__'):  # It's a method.
+                try:
+                    event_name = method.event_register[0]
+                    self.local_event_handlers[event_name] = method
+                    self.subscribers[event_name] = []
+                    print(f'{self.__class__.__name__}: Registered event "{event_name}"')
+                except AttributeError:  # Does not have 'register'
+                    pass
+
+    @property
+    def children(self):
+        return self._children
+
+    @children.setter
+    def children(self, value):
+        """
+        Sets the children list. If value is of type list, it gets
+        converted into a NotifyList and the on_children_change method
+        is set as a callback for changes. This same method is called
+        after the list is set.
+
+        :param value: List of children.
+        :return: None
+        """
+        print(f'{self.__class__.__name__}.children({value})')
+
+        self._children = NotifyList(value)
+        self._children._callbacks.append(self.on_children_change)
+        self.on_children_change()
+
+    def on_children_change(self):
+        """
+        Called after the children attribute changes, this is when it gets assigned
+        or when the elements in that list change (append, remove, etc).
+
+        :return: None
+        """
+        print(f'{self.__class__.__name__}.on_children_change()')
+
+        # Adopt children
+        print(f'{repr(self)} adopting children:')
+        for child in self.children:
+            print(f'   {repr(child)} adopted.')
+            child.parent = self
 
     def html(self):
-        return '<widget id="_{{identifier}}"></widget>'.format(
+        """
+        Generates the HTML for this widget in the browser.
+
+        :return: HTML text.
+        """
+        return Template('<widget id="_{{identifier}}"></widget>').render(
             identifier=self.identifier
         )
 
@@ -81,13 +193,18 @@ class Widget:
         try:
             self.parent.deliver(msg)
         except AttributeError:
-            raise OrfanWidgetError("This widget is not attached to an app.")
-
-    # def event_handler(method, event_name):
-    #     .event_handlers[event_name] = method
-    #     return method
+            raise OrfanWidgetError(
+                f'This widget is not attached to an app: {repr(self)}'
+            )
 
     def register(self, event, handler):
+        """
+        Register the event handler for the specified event.
+
+        :param event: Name of the event
+        :param handler: Callable.
+        :return: None
+        """
 
         try:
             if handler not in self.subscribers[event]:
@@ -96,18 +213,46 @@ class Widget:
             raise NoSuchEvent(event)
 
 
+class HBox(Widget):
+
+    def html(self):
+        content = "\n".join(child.html() for child in self.children)
+
+        return Template("""
+        <widget id="_{{identifier}}">
+        <div style="display: flex; flex-direction: row;">
+        {{content}}
+        </div>
+        </widget>
+        """).render(
+            identifier=self.identifier,
+            content=content
+        )
+
+
+class VBox(Widget):
+
+    def html(self):
+        content = "\n".join(child.html() for child in self.children)
+
+        return Template("""
+        <widget id="_{{identifier}}">
+        <div style="display: flex; flex-direction: column;">
+        {{content}}
+        </div>
+        </widget>
+        """).render(
+            identifier=self.identifier,
+            content=content
+        )
+
+
 class Button(Widget):
 
     label = "button"
 
-    def __init__(self, connection=None):
-        super().__init__(connection)
-
-        self.local_event_handlers = {
-            'click': self.on_click
-        }
-
-        self.subscribers['click'] = []
+    def __init__(self):
+        super().__init__()
 
     def html(self):
         return Template("""
@@ -130,7 +275,7 @@ class Button(Widget):
             label=self.label
         )
 
-    # @Widget.event_handler("click")
+    @event_handler("click")
     def on_click(self, msg):
         """"""
         print(f'{self.__class__.__name__}.on_click()')
@@ -141,13 +286,9 @@ class Button(Widget):
 
 class Input(Widget):
 
-    def __init__(self, connection=None):
-        super().__init__(connection)
+    def __init__(self):
+        super().__init__()
         self._value = ""
-
-        self.event_handlers = {
-            "change": self.on_change
-        }
 
     def html(self):
         return Template("""
@@ -157,13 +298,17 @@ class Input(Widget):
         // Event: "change" - Change in the value in the input box.
         // Occurs when hitting enter or focusing on something else (Chrome). 
         $("#{{identifier}}").change( function( event ) {
-          console.log({id:"{{identifier}}", event: 'click', value: event.currentTarget.value});
-          message({id:"{{identifier}}", event: 'click', value: event.currentTarget.value});
+            console.log({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
+            message({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
         });
         $("#{{identifier}}").on("message", function( evt, data ) {
-          console.log("message event for #{{identifier}}");
-          console.log(evt);
-          console.log(data);
+              console.log("message event for #{{identifier}}");
+              console.log(evt);
+              console.log(data);
+              if (data.event == "value") {
+                    console.log('data.event == "value"');
+                    evt.currentTarget.value = data.value;
+              }
         });
         </script>
         </widget>
@@ -177,12 +322,14 @@ class Input(Widget):
 
     @value.setter
     def value(self, val):
-        print(f'{self.__class__.__name__}.value()')
-        self.message({'event': 'value'})
+        print(f'{self.__class__.__name__}.value({val})')
+        self.message({'event': 'value', 'value': val})
+        self._value = val
 
+    @event_handler("change")
     def on_change(self, msg):
         """"""
-        print(f'{self.__class__.__name__}.on_click()')
+        print(f'{self.__class__.__name__}.on_change({msg})')
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -199,13 +346,10 @@ class MainHandler(tornado.web.RequestHandler):
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     mainApp = None
-
-    # connections = set()
     connection = None
 
     def open(self):
         print(f'{self.__class__.__name__}.open()')
-        # self.connections.add(self)
         if self.connection is None:
             WebSocketHandler.connection = self
             self.mainApp.wsopen()
@@ -217,11 +361,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         msg = json.loads(message)
         print(f'GOT MSG: {msg}')
         self.mainApp.on_message(msg)
-        # [client.write_message(message) for client in self.connections]
 
     def on_close(self):
         print(f'{self.__class__.__name__}.on_close()')
-        # self.connections.remove(self)
         WebSocketHandler.connection = None
 
 
@@ -238,15 +380,22 @@ class MainApp:
         self.button = Button()
         self.inbox = Input()
 
-        self.uielements: List[Widget] = [
+        self.box1 = HBox()
+        self.box1.children = [
             self.button,
             self.inbox
+        ]
+
+        self.uielements: List[Widget] = [
+            self.box1
         ]
 
         self.uielements_by_id = MainApp.index_uielements(self.uielements)
 
         # Adopt widgets.
+        print(f'{repr(self)} adopting children:')
         for w in self.uielements:
+            print(f'   {repr(w)} adopted.')
             w.parent = self
 
         self.button.register('click', self.on_button_click)
@@ -287,9 +436,11 @@ class MainApp:
 
         :return:
         """
+        content = "\n".join(child.html() for child in self.uielements)
+
         return Template("""
-        {{inbox}}<BR>{{button}}
-        """).render(inbox=self.inbox, button=self.button)
+        {{content}}
+        """).render(content=content)
 
     def deliver(self, msg):
         print(f'{self.__class__.__name__}.deliver()')
@@ -305,5 +456,5 @@ class MainApp:
 
 if __name__ == "__main__":
     app = MainApp().make_app()
-    app.listen(8888)
+    app.listen(8881)
     tornado.ioloop.IOLoop.current().start()

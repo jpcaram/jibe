@@ -9,12 +9,11 @@ html = """
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 </head>
 <body>
-    <h1>The page</h1>
     
     {{body}}
     
     <script language="JavaScript">
-        var ws = new WebSocket("ws://localhost:8888/websocket");
+        var ws = new WebSocket("ws://localhost:8881/websocket");
         
         ws.onmessage = function(evt) {
             var messageDict = JSON.parse(evt.data);
@@ -22,6 +21,7 @@ html = """
             
             // Message format:
             // {id: ..., event: ..., ...}
+            // Widgets must implement $(...).on("message", function...)
             $("#" + messageDict.id).trigger("message", messageDict);
         };
         
