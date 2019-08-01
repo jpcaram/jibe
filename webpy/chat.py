@@ -230,6 +230,52 @@ class HBox(Widget):
         )
 
 
+class HBox2(Widget):
+
+    def html(self):
+
+        return Template("""
+        <widget id="_{{identifier}}">
+        <div id="{{identifier}}" style="display: flex; flex-direction: row;">
+        
+        </div>
+        <script>
+        $(document).ready( function() {
+            $( document ).on("wsconnected", function() {
+                console.log("HBox2 {{identifier}} instantiated.");
+                message( {'id': '{{identifier}}', 'event': 'children'} );
+            });
+        });
+        $("#{{identifier}}").on("message", function(evt, data) {
+            console.log("message event for #{{identifier}}");
+            console.log(evt);
+            console.log(data);
+            if (data.event == "children") {
+                console.log('data.event == "children"');
+                data.children.forEach(function(child) {
+                    contents =  $(evt.currentTarget).html();
+                    $(evt.currentTarget).html(contents + child);
+                });
+            }
+        });
+        </script>
+        </widget>
+        """).render(
+            identifier=self.identifier
+        )
+
+    @event_handler("children")
+    def on_children(self, msg):
+        """
+        Javascript counterpart request for children.
+
+        :return:
+        """
+        self.message({'event': 'children', 'children': [
+            child.html() for child in self.children
+        ]})
+
+
 class VBox(Widget):
 
     def html(self):
@@ -279,7 +325,7 @@ class Button(Widget):
     def on_click(self, msg):
         """"""
         print(f'{self.__class__.__name__}.on_click()')
-
+        print(f'{len(self.subscribers)} subscribers.')
         for subscriber in self.subscribers['click']:
             subscriber(self)
 
@@ -380,11 +426,17 @@ class MainApp:
         self.button = Button()
         self.inbox = Input()
 
-        self.box1 = HBox()
+        self.box1 = HBox2()
         self.box1.children = [
             self.button,
             self.inbox
         ]
+
+        # self.box1 = HBox()
+        # self.box1.children = [
+        #     self.button,
+        #     self.inbox
+        # ]
 
         self.uielements: List[Widget] = [
             self.box1

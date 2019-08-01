@@ -13,11 +13,17 @@ html = """
     {{body}}
     
     <script language="JavaScript">
+        $( document ).on("wsconnected", function() {
+            console.log("Websocket connection ready.");
+        });
         var ws = new WebSocket("ws://localhost:8881/websocket");
+        ws.onopen = function() {
+            $( document ).trigger("wsconnected");
+        };
         
         ws.onmessage = function(evt) {
             var messageDict = JSON.parse(evt.data);
-            console.log(messageDict);
+            console.log("Message received: ", messageDict);
             
             // Message format:
             // {id: ..., event: ..., ...}
