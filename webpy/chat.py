@@ -13,8 +13,8 @@ letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 def callback_method(func):
     """
-    Used wrap methods such that _callbacks in the class
-    are called immediately before method.
+    Used to wrap methods such that _callbacks in the class
+    are called immediately before the method.
 
     :param func: Method to be wrapped.
     :return: Wrapped method.
@@ -46,8 +46,10 @@ class NotifyList(list):
 
 def event_handler(*args):
     """
+    A decorator for methods.
+
     Mark the method as an event handler. Simply sets the attribute
-    event_register to the given arguments. This attribute is then
+    event_register to the given arguments tuple. This attribute is then
     checked by the constructor of the class.
 
     :param args:
@@ -91,8 +93,10 @@ class Widget:
         self.subscribers = {}
         """For others to benotified of events."""
 
-        # Process methods marked as event handlers.
+        # Process methods marked as event handlers
+        # (Decorated with @event_handler('event_name)).
         for method_name in dir(self):
+
             # Skip properties
             if isinstance(getattr(self.__class__, method_name, None), property):
                 continue
@@ -102,7 +106,10 @@ class Widget:
             # Methods only.
             if callable(method) and not method_name.startswith('__'):  # It's a method.
                 try:
+                    # This will raise AttributeError if not a callback.
+                    # (Event handlers have attribute event_register which is a tuple).
                     event_name = method.event_register[0]
+
                     self.local_event_handlers[event_name] = method
                     self.subscribers[event_name] = []
                     print(f'{self.__class__.__name__}: Registered event "{event_name}"')
@@ -267,8 +274,10 @@ class HBox2(Widget):
     @event_handler("children")
     def on_children(self, msg):
         """
-        Javascript counterpart request for children.
+        Javascript counterpart request for children. Widgets that have children
+        will request for their children once they are instantiated in the browser.
 
+        :param msg: Message from the browser
         :return:
         """
         self.message({'event': 'children', 'children': [
@@ -323,7 +332,12 @@ class Button(Widget):
 
     @event_handler("click")
     def on_click(self, msg):
-        """"""
+        """
+        Main event handler for the "click" event.
+
+        :param msg:
+        :return:
+        """
         print(f'{self.__class__.__name__}.on_click()')
         print(f'{len(self.subscribers)} subscribers.')
         for subscriber in self.subscribers['click']:
@@ -374,11 +388,19 @@ class Input(Widget):
 
     @event_handler("change")
     def on_change(self, msg):
-        """"""
+        """
+        Event handler for the "change" event.
+
+        :param msg:
+        :return:
+        """
         print(f'{self.__class__.__name__}.on_change({msg})')
 
 
 class MainHandler(tornado.web.RequestHandler):
+    """
+    Serves the top level html and core elements (javascript) of the application.
+    """
 
     mainApp = None
 
@@ -390,11 +412,22 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    """
+    Serves application widgets and handles communications during the
+    life time of the application.
+    """
 
     mainApp = None
     connection = None
 
     def open(self):
+        """
+        Opens the websocket connection. Accepts only one connection at this time.
+        Further connection attempts will raise a RuntimeError. A new connection
+        is accepted after this object's on_close() has been called.
+
+        :return:
+        """
         print(f'{self.__class__.__name__}.open()')
         if self.connection is None:
             WebSocketHandler.connection = self
@@ -404,11 +437,25 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             raise RuntimeError('WS is in use.')
 
     def on_message(self, message):
+        """
+        Handles messages received from the browser.
+        So far, messages are passed directly to the application. They could
+        potentially be intercepted here for "pluggable" processing of messages.
+
+        :param message: A valid JSON string.
+        :return: None
+        """
         msg = json.loads(message)
         print(f'GOT MSG: {msg}')
         self.mainApp.on_message(msg)
 
     def on_close(self):
+        """
+        Called when the connection has been closed (Probably by the client).
+        Clears the class' connection attribute.
+
+        :return: None
+        """
         print(f'{self.__class__.__name__}.on_close()')
         WebSocketHandler.connection = None
 
@@ -423,34 +470,34 @@ class MainApp:
         self.wshandler.mainApp = self
         self.mainhandler.mainApp = self
 
-        self.button = Button()
-        self.inbox = Input()
-
-        self.box1 = HBox2()
-        self.box1.children = [
-            self.button,
-            self.inbox
-        ]
-
-        # self.box1 = HBox()
+        # self.button = Button()
+        # self.inbox = Input()
+        #
+        # self.box1 = HBox2()
         # self.box1.children = [
         #     self.button,
         #     self.inbox
         # ]
+        #
+        # # self.box1 = HBox()
+        # # self.box1.children = [
+        # #     self.button,
+        # #     self.inbox
+        # # ]
 
-        self.uielements: List[Widget] = [
-            self.box1
-        ]
-
-        self.uielements_by_id = MainApp.index_uielements(self.uielements)
-
-        # Adopt widgets.
-        print(f'{repr(self)} adopting children:')
-        for w in self.uielements:
-            print(f'   {repr(w)} adopted.')
-            w.parent = self
-
-        self.button.register('click', self.on_button_click)
+        # self.uielements: List[Widget] = [
+        #     self.box1
+        # ]
+        #
+        # self.uielements_by_id = MainApp.index_uielements(self.uielements)
+        #
+        # # Adopt widgets.
+        # print(f'{repr(self)} adopting children:')
+        # for w in self.uielements:
+        #     print(f'   {repr(w)} adopted.')
+        #     w.parent = self
+        #
+        # self.button.register('click', self.on_button_click)
 
     @staticmethod
     def index_uielements(elements=()):
@@ -498,6 +545,42 @@ class MainApp:
         print(f'{self.__class__.__name__}.deliver()')
         self.wshandler.connection.write_message(json.dumps(msg))
 
+    # def on_inbox_change(self):
+    #     pass
+    #
+    # def on_button_click(self, source):
+    #     print(f'{self.__class__.__name__}.on_button_click()')
+    #     self.inbox.value = "Hello!"
+
+
+class ExampleApp(MainApp):
+
+    def __init__(self):
+        super().__init__()
+
+        self.button = Button()
+        self.inbox = Input()
+
+        self.box1 = HBox2()
+        self.box1.children = [
+            self.button,
+            self.inbox
+        ]
+
+        self.uielements: List[Widget] = [
+            self.box1
+        ]
+
+        self.uielements_by_id = MainApp.index_uielements(self.uielements)
+
+        # Adopt widgets.
+        print(f'{repr(self)} adopting children:')
+        for w in self.uielements:
+            print(f'   {repr(w)} adopted.')
+            w.parent = self
+
+        self.button.register('click', self.on_button_click)
+
     def on_inbox_change(self):
         pass
 
@@ -507,6 +590,7 @@ class MainApp:
 
 
 if __name__ == "__main__":
-    app = MainApp().make_app()
+    # app = MainApp().make_app()
+    app = ExampleApp().make_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()
