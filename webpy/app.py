@@ -2,7 +2,7 @@ import tornado.web
 import tornado.websocket
 import json
 from jinja2 import Template
-from .widget import Widget
+from .widget import Widget, VBox
 from .page import htmlt
 from typing import List, Dict
 from pathlib import Path
@@ -55,6 +55,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print(f'{self.__class__.__name__}.open()')
         if self.connection is None:
             WebSocketHandler.connection = self
+
+            # Call the APPs handler for open websocket.
             self.mainApp.wsopen()
         else:
             print(f'Existing connection: {self.connection}')
@@ -84,7 +86,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         WebSocketHandler.connection = None
 
 
-class MainApp:
+class MainApp(VBox):
 
     wshandler = WebSocketHandler
     mainhandler = MainHandler
@@ -92,33 +94,13 @@ class MainApp:
 
     def __init__(self):
         print(f'{self.__class__.__name__}.__init__()')
+        super().__init__()
+        print(f'{self.__class__.__name__}.identifier == {self.identifier}')
+
         self.wshandler.mainApp = self
         self.mainhandler.mainApp = self
 
-        self.uielements_by_id = {}
-        self.uielements: List[Widget] = [
-
-        ]
-
-    @staticmethod
-    def index_uielements(elements=()):
-        """
-        Recursively visits children and collects their
-        identifiers.
-
-        :param elements:
-        :return:
-        """
-        index = {}
-        for elem in elements:
-            index[elem.identifier] = elem
-            index.update(MainApp.index_uielements(elem.children))
-        return index
-
-    def announce_children(self, *args):
-
-        for child in args:
-            self.uielements_by_id[child.identifier] = child
+        self.outbox = []
 
     def make_app(self):
         return tornado.web.Application([
@@ -128,7 +110,17 @@ class MainApp:
         ])
 
     def wsopen(self):
-        """"""
+        """
+        Called by self.wshandler.open(). Here we deliver all queued meesages
+        in self.outbox. self.deliver will queue the messages if
+        self.wshandler.connection is None.
+
+        :return: None
+        """
+        print(f'{self.__class__.__name__}.wsopen()')
+        for msg in self.outbox:
+            self.deliver(msg)
+        self.outbox = []
 
     def on_message(self, msg: Dict):
         """
@@ -139,44 +131,27 @@ class MainApp:
         """
         print(f'{self.__class__.__name__}.on_message():')
         print(msg)
-        print(repr(self.uielements_by_id[msg["id"]]))
-        self.uielements_by_id[msg["id"]].on_message(msg)
 
-    def html(self):
-        """
-        Called by the main handler to render the body of
-        the page on to the client.
-
-        :return:
-        """
-        content = "\n".join(child.html() for child in self.uielements)
-
-        return Template("""
-        {{content}}
-        """).render(content=content)
+        if msg['id'] == self.identifier:
+            super().on_message(msg)
+        else:
+            self.descendent_index[msg['id']].on_message(msg)
 
     def deliver(self, msg: Dict):
         """
-        Delivers a message to the browser.
+        Delivers a message to the browser. If self.wshandler.connection
+        is None (websocket has not been opened), the messages are queued in
+        self.outbox. All queued messages are delivered once the websocket opens
+        (self.wsopen is called).
 
         :param msg: Message to be delivered.
         :return: None
         """
         print(f'{self.__class__.__name__}.deliver()')
-        self.wshandler.connection.write_message(json.dumps(msg))
 
-    def update_descendents(self, *args):
-        print(f"{self.__class__.__name__}.update_descendents()")
-        for branch in args:
-            if isinstance(branch, Widget):
-                self.uielements_by_id[branch.identifier] = branch
-            elif isinstance(branch, dict):
-                self.uielements_by_id.update(branch)
-            elif isinstance(branch, list):
-                for w in branch:
-                    self.uielements_by_id[w.identitier] = w
-            else:
-                raise TypeError("Cannot update descendent from type {}".format(type(branch)))
-
-        for ident, w in self.uielements_by_id.items():
-            print(f'   {ident}: {w.__class__.__name__}')
+        if self.wshandler.connection is None:
+            # Save the messages. They will be delivered when we open
+            # the connection.
+            self.outbox.append(msg)
+        else:
+            self.wshandler.connection.write_message(json.dumps(msg))

@@ -11,6 +11,16 @@
 
 Small tasks:
 
-* Add label widget.
-* Separate MainApp from example/derived Apps.
-* Set attributes and style
+* Add label widget. -- DONE --
+* Separate MainApp from example/derived Apps. -- DONE --
+  - Now it is a descendent of VBox.
+* Set attributes and style. -- Partial --
+  - Styles done.
+* App assets.
+* Progress bar widget
+* Image widget (w/ Matplotlib?)
+
+
+Issues:
+
+* If MainApp does not have widgets?

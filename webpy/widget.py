@@ -122,7 +122,7 @@ class NoSuchEvent(Exception):
 
 class Widget:
 
-    def __init__(self):
+    def __init__(self, style=None):
 
         self.identifier = ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
@@ -145,6 +145,9 @@ class Widget:
 
         self.subscribers = {}
         """For others to benotified of events."""
+
+        self.style = {} if style is None else style
+        """Style attribute"""
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name)).
@@ -379,6 +382,17 @@ class Widget:
             child.html() for child in self.children
         ]})
 
+    def style_string(self):
+        return " ".join([f"{key}: {value};" for key, value in self.style.items()])
+
+    def css(self, style):
+
+        self.message({'event': 'css', 'css': style})
+
+    def attr(self, attrs):
+
+        self.message({'event': 'attr', 'attr': attrs})
+
 
 class HBox(Widget):
 
@@ -404,14 +418,15 @@ class VBox(Widget):
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <div id="{{identifier}}" style="display: flex; flex-direction: column;">
+        <div id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
         </div>
         <script>
         new Widget("{{identifier}}", APP.wsopen);
         </script>
         </widget>
         """).render(
-            identifier=self.identifier
+            identifier=self.identifier,
+            style=self.style_string()
         )
 
     @event_handler("started")
@@ -426,14 +441,14 @@ class Button(Widget):
     Supported events: click.
     """
 
-    def __init__(self, label="button"):
-        super().__init__()
+    def __init__(self, label="button", **kwargs):
+        super().__init__(**kwargs)
         self.label = label
 
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <button id="{{identifier}}">{{label}}</button>
+        <button id="{{identifier}}" style="{{style}}">{{label}}</button>
         <script>
         let b = new Widget("{{identifier}}", APP.wsopen);
         b.node.on("click", function( event ) {
@@ -444,7 +459,8 @@ class Button(Widget):
         </widget>
         """).render(
             identifier=self.identifier,
-            label=self.label
+            label=self.label,
+            style=self.style_string()
         )
 
     @event_handler("click")
@@ -463,14 +479,14 @@ class Button(Widget):
 
 class Input(Widget):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._value = ""
 
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <input id="{{identifier}}" type="text">
+        <input id="{{identifier}}" type="text" style="{{style}}">
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.node.on("change", function(event) {
@@ -483,7 +499,8 @@ class Input(Widget):
         </script>
         </widget>
         """).render(
-            identifier=self.identifier
+            identifier=self.identifier,
+            style=self.style_string()
         )
 
     @property
@@ -512,14 +529,14 @@ class Input(Widget):
 
 class Label(Widget):
 
-    def __init__(self, value=""):
-        super().__init__()
+    def __init__(self, value="", **kwargs):
+        super().__init__(**kwargs)
         self._value = value
 
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <div id="{{identifier}}">{{ value }}</div>
+        <div id="{{identifier}}" style="{{style}}">{{ value }}</div>
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.onMsgType("value", function(message) {
@@ -529,20 +546,21 @@ class Label(Widget):
         </widget>
         """).render(
             identifier=self.identifier,
-            value=self._value
+            value=self._value,
+            style=self.style_string()
         )
 
 
 class CheckBox(Widget):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._checked = False
 
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <input id="{{identifier}}" type="checkbox">
+        <input id="{{identifier}}" type="checkbox" style="{{style}}">
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.node.on("change", function( event ) {
@@ -556,7 +574,8 @@ class CheckBox(Widget):
         </script>
         </widget>
         """).render(
-            identifier=self.identifier
+            identifier=self.identifier,
+            style=self.style_string()
         )
 
     @property
@@ -586,3 +605,36 @@ class CheckBox(Widget):
         print(f'{len(self.subscribers["change"])} subscribers.')
         for subscriber in self.subscribers['change']:
             subscriber(self)
+
+
+class Image(Widget):
+
+    def __init__(self):
+        super().__init__()
+        self._data = ""
+
+    def html(self):
+
+        return Template("""
+        <widget id="_{{identifier}}">
+        <img src="data:image/png;base64,{{ data }}" width="640" height="480" border="0" />
+        <script>
+        let w = new Widget("{{identifier}}", APP.wsopen);
+        </script>
+        </widget>
+        """).render(
+            self.identifier,
+            self.data
+        )
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+        self.message({'event': 'attr',
+                      'attr': {'src': f'data:image/png;base64,{value}'}})
+
+

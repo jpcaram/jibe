@@ -67,7 +67,9 @@ class Widget {
         this.msgHandlers = {
             children: [this.onChildren.bind(this)],
             append: [this.onAppendChild.bind(this)],
-            remove: [this.onRemoveChild.bind(this)]
+            remove: [this.onRemoveChild.bind(this)],
+            css: [this.onCSS.bind(this)],
+            attr: [this.onAttr.bind(this)]
         };
 
         console.log("[" + this.id + "] constructed!");
@@ -139,6 +141,15 @@ class Widget {
         $("#_" + message.childid).remove();
     }
 
+    onCSS(message) {
+        console.log("[" + this.id + "] .onCSS(): ", message.css);
+        this.node.css(message.css);
+    }
+
+    onAttr(message) {
+        console.log("[" + this.id + "] .onAttr(): ", message.attr);
+    }
+
     /**
      * Set an event handler for a specific kind of message.
      *
@@ -152,4 +163,5 @@ class Widget {
 
         this.msgHandlers[msgtype].push(handler.bind(this));
     }
+
 }
