@@ -148,6 +148,7 @@ class Widget {
 
     onAttr(message) {
         console.log("[" + this.id + "] .onAttr(): ", message.attr);
+        this.node.attr(message.attr);
     }
 
     /**

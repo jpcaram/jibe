@@ -127,6 +127,8 @@ class Widget:
         self.identifier = ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
 
+        self.browser_side_ready = False
+
         self._parent = None
         """Widgets pass messages up to their parent to reach the main App,
         which sends the message to the browser.
@@ -137,6 +139,7 @@ class Widget:
         self._children = NotifyList2([])
         """For composite widgets."""
 
+        # What to do when we make changes to self._children.
         self._children._on_append_callbacks.append(self.on_children_append)
         self._children._on_remove_callbacks.append(self.on_children_remove)
 
@@ -148,6 +151,9 @@ class Widget:
 
         self.style = {} if style is None else style
         """Style attribute"""
+
+        self.outbox = []
+        """Message queue waiting for browser side to be ready."""
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name)).
@@ -345,6 +351,9 @@ class Widget:
         :return:
         """
 
+        if not self.browser_side_ready:
+            self.outbox.append(msg)
+
         try:
             self.parent.deliver(msg)
         except AttributeError:
@@ -376,11 +385,26 @@ class Widget:
         will request for their children once they are instantiated in the browser.
 
         :param msg: Message from the browser
-        :return:
+        :return: None
         """
         self.message({'event': 'children', 'children': [
             child.html() for child in self.children
         ]})
+
+    @event_handler("started")
+    def on_browser_side_ready(self, msg):
+        """
+        Javascript counterpart is ready in the browser and can receive
+        messages.
+
+        :param msg: Message from the browser
+        :return: None
+        """
+
+        self.browser_side_ready = True
+        for msg in self.outbox:
+            self.deliver(msg)
+        self.outbox = []
 
     def style_string(self):
         return " ".join([f"{key}: {value};" for key, value in self.style.items()])
@@ -617,14 +641,15 @@ class Image(Widget):
 
         return Template("""
         <widget id="_{{identifier}}">
-        <img src="data:image/png;base64,{{ data }}" width="640" height="480" border="0" />
+        <img id="{{identifier}}" src="data:image/png;base64,{{ data }}" 
+            width="640" height="480" border="0" />
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         </script>
         </widget>
         """).render(
-            self.identifier,
-            self.data
+            identifier=self.identifier,
+            data=self.data
         )
 
     @property

@@ -17,17 +17,9 @@ class ExampleApp(MainApp):
             self.inbox
         ]
 
-        self.uielements = [
+        self.children = [
             self.box1
         ]
-
-        self.uielements_by_id = MainApp.index_uielements(self.uielements)
-
-        # Adopt widgets.
-        print(f'{repr(self)} adopting children:')
-        for w in self.uielements:
-            print(f'   {repr(w)} adopted.')
-            w.parent = self
 
         self.button.register('click', self.on_button_click)
 
