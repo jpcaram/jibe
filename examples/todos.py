@@ -68,22 +68,9 @@ class ExampleApp(MainApp):
     def __init__(self):
         super().__init__()
 
-        # h1 = HBox()
-        # h2 = HBox()
-        # l1 = Label("A label.")
-        # h1.children = [h2]
-        # h2.children = [l1]
-        self.uielements = [
+        self.children = [
             TodoListWidget()
         ]
-
-        self.uielements_by_id = MainApp.index_uielements(self.uielements)
-
-        # Adopt widgets.
-        print(f'{repr(self)} adopting children:')
-        for w in self.uielements:
-            print(f'   {repr(w)} adopted.')
-            w.parent = self
 
 
 if __name__ == "__main__":

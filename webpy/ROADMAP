@@ -9,18 +9,21 @@
 
 * Multiple Apps, Multiple Users, Sessions
 
+* Authentication
+
 Small tasks:
 
 * Add label widget. -- DONE --
 * Separate MainApp from example/derived Apps. -- DONE --
   - Now it is a descendent of VBox.
-* Set attributes and style. -- Partial --
+* Set attributes and style. -- DONE --
   - Styles done.
+* Image widget (w/ Matplotlib?) -- DONE --
 * App assets.
 * Progress bar widget
-* Image widget (w/ Matplotlib?)
+* Container widgets to receive children in constructor parameters.
 
 
 Issues:
 
-* If MainApp does not have widgets?
+* If MainApp does not have widgets? Common mistake.

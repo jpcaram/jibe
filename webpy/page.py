@@ -6,6 +6,7 @@ html = """
 <head>
     <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
     <script src="app.js"></script>
+    <link rel="stylesheet" type="text/css" href="app.css">
 </head>
 <body>
     

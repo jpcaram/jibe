@@ -1,5 +1,5 @@
 from .app import MainApp
-from .widget import Widget, Button, Input, HBox, VBox, CheckBox, Label, NotifyList2
+from .widget import Widget, Button, Input, HBox, VBox, CheckBox, Label, NotifyList2, Image, ProgressBar
 
 __all__ = [
     'MainApp',
@@ -10,5 +10,7 @@ __all__ = [
     'VBox',
     'CheckBox',
     'Label',
-    'NotifyList2'
+    'NotifyList2',
+    'Image',
+    'ProgressBar'
 ]
