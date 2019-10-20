@@ -6,6 +6,10 @@ from .widget import Widget, VBox
 from .page import htmlt
 from typing import List, Dict
 from pathlib import Path
+from random import choice
+
+
+letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -15,12 +19,18 @@ class MainHandler(tornado.web.RequestHandler):
     """
 
     mainApp = None
+    """Instance of the mainApp."""
 
     def get(self):
 
         body = "{}".format(
             self.mainApp.html()  # Serves the top level widgets.
         )
+
+        sessionid = self.get_cookie("sessionid")
+        if not sessionid:
+            sessionid = ''.join(choice(letter) for _ in range(10))
+            self.set_cookie("sessionid", sessionid)
 
         self.write(htmlt.render(body=body))
 
@@ -32,6 +42,16 @@ class JSHandler(tornado.web.RequestHandler):
 
     def get(self):
         with open(f'{Path(__file__).parent.absolute()}/app.js') as f:
+            self.write(f.read())
+
+
+class CSSHandler(tornado.web.RequestHandler):
+    """
+    Serves app.js
+    """
+
+    def get(self):
+        with open(f'{Path(__file__).parent.absolute()}/app.css') as f:
             self.write(f.read())
 
 
@@ -52,7 +72,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         :return:
         """
-        print(f'{self.__class__.__name__}.open()')
+        print(f'################################# {self.__class__.__name__}.open()')
         if self.connection is None:
             WebSocketHandler.connection = self
 
@@ -91,22 +111,24 @@ class MainApp(VBox):
     wshandler = WebSocketHandler
     mainhandler = MainHandler
     jshandler = JSHandler
+    csshandler = CSSHandler
 
     def __init__(self):
         print(f'{self.__class__.__name__}.__init__()')
+
         super().__init__()
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
         self.wshandler.mainApp = self
         self.mainhandler.mainApp = self
 
-        self.outbox = []
-
     def make_app(self):
         return tornado.web.Application([
             (r"/", self.mainhandler),
             (r"/websocket", self.wshandler),
-            (r"/app.js", self.jshandler)
+            #(r"/app.js", self.jshandler),
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
         ])
 
     def wsopen(self):
@@ -117,14 +139,16 @@ class MainApp(VBox):
 
         :return: None
         """
-        print(f'{self.__class__.__name__}.wsopen()')
-        for msg in self.outbox:
-            self.deliver(msg)
-        self.outbox = []
+        print(f'{self.__class__.__name__}.wsopen() -- Nothing to do here.')
+        # for msg in self.outbox:
+        #     self.deliver(msg)
+        # self.outbox = []
 
     def on_message(self, msg: Dict):
         """
-        Called by the websocket handler's on_message.
+        Called by the websocket handler's on_message. Overrides
+        the parent widget's on_message. Delivers the message to
+        the parent (super) or to descendents.
 
         :param msg: The message from the client.
         :return: None
@@ -149,9 +173,12 @@ class MainApp(VBox):
         """
         print(f'{self.__class__.__name__}.deliver()')
 
-        if self.wshandler.connection is None:
+        # if self.wshandler.connection is None:
+        if not self.browser_side_ready:
             # Save the messages. They will be delivered when we open
             # the connection.
             self.outbox.append(msg)
+            print(f'   Appended to outbox: {msg}')
         else:
             self.wshandler.connection.write_message(json.dumps(msg))
+            print(f'   Sent out: {msg}')

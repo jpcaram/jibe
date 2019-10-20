@@ -122,7 +122,7 @@ class NoSuchEvent(Exception):
 
 class Widget:
 
-    def __init__(self, style=None):
+    def __init__(self, *args, style=None):
 
         self.identifier = ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
@@ -172,11 +172,16 @@ class Widget:
                     # (Event handlers have attribute event_register which is a tuple).
                     event_name = method.event_register[0]
 
+                    if event_name in self.local_event_handlers:
+                        raise TypeError(f'Event "{event_name}" of {repr(self)} already has a handler.')
+
                     self.local_event_handlers[event_name] = method
                     self.subscribers[event_name] = []
                     print(f'{self.__class__.__name__}: Registered event "{event_name}"')
                 except AttributeError:  # Does not have 'register'
                     pass
+
+        # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
 
     @property
     def children(self):
@@ -189,6 +194,8 @@ class Widget:
         converted into a NotifyList and the on_children_change method
         is set as a callback for changes. This same method is called
         after the list is set.
+
+        TODO: Make sure the new value is different.
 
         :param value: List of children.
         :return: None
@@ -245,8 +252,8 @@ class Widget:
 
     def on_children_change(self):
         """
-        Called when the children attribute is assigned. All the children
-        are sent to the browser.
+        Called when the children attribute is assigned. Children are "adopted",
+        i.e. their parent property is set to this widget.
 
         :return: None
         """
@@ -256,15 +263,13 @@ class Widget:
         print(f'{repr(self)} adopting children:')
         for child in self.children:
             print(f'   {repr(child)} adopted.')
-            child.parent = self
+            child.parent = self  # Invokes child.parent.update_descendents().
 
-        # TODO: Temporary experiment
-        try:
-            self.message({'event': 'children', 'children': [
-                child.html() for child in self.children
-            ]})
-        except OrfanWidgetError:
-            print("Temporarily allowing OrfanWidgetError!")
+        # Notify the client if it is ready. If we do it before it is ready,
+        # the messages will be queued and then this will happen twice when
+        # it becomes ready.
+        if self.browser_side_ready:
+            self.on_children()
 
     def on_children_append(self, *args, **kwargs):
         """
@@ -315,8 +320,12 @@ class Widget:
             identifier=self.identifier
         )
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(id="{self.identifier}")'
+
     def __str__(self):
-        return self.html()
+        # return self.html()
+        return self.__repr__()
 
     def on_message(self, msg):
         """
@@ -325,10 +334,11 @@ class Widget:
         :param msg:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_message()')
+        print(f'{repr(self)}.on_message()')
         print(f'   says: {msg}')
 
         if 'event' in msg and msg['event'] in self.local_event_handlers:
+            print(f'   Forwarding to \"{msg["event"]}\" event handler.')
             self.local_event_handlers[msg['event']](msg)
 
     def message(self, msg):
@@ -350,16 +360,19 @@ class Widget:
         :param msg:
         :return:
         """
+        print(f'{self.__class__.__name__}.deliver()')
 
         if not self.browser_side_ready:
             self.outbox.append(msg)
-
-        try:
-            self.parent.deliver(msg)
-        except AttributeError:
-            raise OrfanWidgetError(
-                f'This widget is not attached to an app: {repr(self)}'
-            )
+            print(f'   Appended to outbox: {msg}')
+        else:
+            try:
+                self.parent.deliver(msg)
+                print(f'   Passed to parent: {msg}')
+            except AttributeError:
+                raise OrfanWidgetError(
+                    f'This widget is not attached to an app: {repr(self)}'
+                )
 
     def register(self, event: str, handler: Callable):
         """
@@ -379,7 +392,7 @@ class Widget:
             raise NoSuchEvent(event)
 
     @event_handler("children")
-    def on_children(self, msg):
+    def on_children(self, msg=None):
         """
         Javascript counterpart request for children. Widgets that have children
         will request for their children once they are instantiated in the browser.
@@ -395,11 +408,17 @@ class Widget:
     def on_browser_side_ready(self, msg):
         """
         Javascript counterpart is ready in the browser and can receive
-        messages.
+        messages. Delivers all queued messages.
 
         :param msg: Message from the browser
         :return: None
         """
+
+        # These will get put in the outbox and delivered after.
+        if len(self.children) > 0:
+            self.message({'event': 'children', 'children': [
+                child.html() for child in self.children
+            ]})
 
         self.browser_side_ready = True
         for msg in self.outbox:
@@ -418,31 +437,12 @@ class Widget:
         self.message({'event': 'attr', 'attr': attrs})
 
 
-class HBox(Widget):
+class Div(Widget):
 
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <div id="{{identifier}}" style="display: flex; flex-direction: row;">
-        </div>
-        <script>
-        new Widget("{{identifier}}", APP.wsopen);
-        </script>
-        """).render(
-            identifier=self.identifier
-        )
-
-    @event_handler("started")
-    def on_started(self, msg):
-        self.on_children(msg)
-
-
-class VBox(Widget):
-
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <div id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
+        <div class="widget" id="{{identifier}}" style="{{style}}">
         </div>
         <script>
         new Widget("{{identifier}}", APP.wsopen);
@@ -453,9 +453,50 @@ class VBox(Widget):
             style=self.style_string()
         )
 
-    @event_handler("started")
-    def on_started(self, msg):
-        self.on_children(msg)
+    # @event_handler("started")
+    # def on_started(self, msg):
+    #     self.on_children(msg)
+
+
+class HBox(Widget):
+
+    def html(self):
+        return Template("""
+        <widget id="_{{identifier}}">
+        <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: row;">
+        </div>
+        <script>
+        new Widget("{{identifier}}", APP.wsopen);
+        </script>
+        """).render(
+            identifier=self.identifier,
+            style=self.style_string()
+        )
+
+    # @event_handler("started")
+    # def on_started(self, msg):
+    #     self.on_children(msg)
+
+
+class VBox(Widget):
+
+    def html(self):
+        return Template("""
+        <widget id="_{{identifier}}">
+        <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
+        </div>
+        <script>
+        new Widget("{{identifier}}", APP.wsopen);
+        </script>
+        </widget>
+        """).render(
+            identifier=self.identifier,
+            style=self.style_string()
+        )
+
+    # @event_handler("started")
+    # def on_started(self, msg):
+    #     self.on_children(msg)
 
 
 class Button(Widget):
@@ -472,12 +513,12 @@ class Button(Widget):
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <button id="{{identifier}}" style="{{style}}">{{label}}</button>
+        <button class="widget" id="{{identifier}}" style="{{style}}">{{label}}</button>
         <script>
         let b = new Widget("{{identifier}}", APP.wsopen);
         b.node.on("click", function( event ) {
-          console.log({id:"{{identifier}}", event: 'click'});
-          APP.send({id:"{{identifier}}", event: 'click'});
+            console.log({id:"{{identifier}}", event: 'click'});
+            APP.send({id:"{{identifier}}", event: 'click'});
         });
         </script>
         </widget>
@@ -510,7 +551,7 @@ class Input(Widget):
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <input id="{{identifier}}" type="text" style="{{style}}">
+        <input class="widget" id="{{identifier}}" type="text" style="{{style}}">
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.node.on("change", function(event) {
@@ -552,6 +593,7 @@ class Input(Widget):
 
 
 class Label(Widget):
+    # TODO: value should be an attribute!
 
     def __init__(self, value="", **kwargs):
         super().__init__(**kwargs)
@@ -560,7 +602,7 @@ class Label(Widget):
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <div id="{{identifier}}" style="{{style}}">{{ value }}</div>
+        <div class="widget" id="{{identifier}}" style="{{style}}">{{ value }}</div>
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.onMsgType("value", function(message) {
@@ -584,7 +626,7 @@ class CheckBox(Widget):
     def html(self):
         return Template("""
         <widget id="_{{identifier}}">
-        <input id="{{identifier}}" type="checkbox" style="{{style}}">
+        <input class="widget" id="{{identifier}}" type="checkbox" style="{{style}}">
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
         w.node.on("change", function( event ) {
@@ -641,7 +683,7 @@ class Image(Widget):
 
         return Template("""
         <widget id="_{{identifier}}">
-        <img id="{{identifier}}" src="data:image/png;base64,{{ data }}" 
+        <img class="widget" id="{{identifier}}" src="data:image/png;base64,{{ data }}" 
             width="640" height="480" border="0" />
         <script>
         let w = new Widget("{{identifier}}", APP.wsopen);
@@ -661,5 +703,96 @@ class Image(Widget):
         self._data = value
         self.message({'event': 'attr',
                       'attr': {'src': f'data:image/png;base64,{value}'}})
+
+
+# class ProgressBar(Widget):
+#
+#     def __init__(self):
+#         super().__init__()
+#         self._value = 0
+#
+#     def html(self):
+#
+#         return Template("""
+#         <widget id="_{{identifier}}">
+#         <div class="widget" id="{{identifier}}" style="
+#             min-width: 300px;
+#             max-width: 300px;
+#             min-height: 30px;
+#             max-height: 30px;
+#             padding: 0;
+#             border: 0;
+#             margin: 8px;
+#             background-color: #dddddd;
+#         ">
+#             <div style="
+#                 min-height: 30px;
+#                 min-width: 12%;
+#                 max-width: 12%;
+#                 margin: 0;
+#                 border: 0;
+#                 background-color: #00bb00;
+#             ">
+#             </div>
+#         </div>
+#         <script>
+#         let w = new Widget("{{identifier}}", APP.wsopen);
+#         </script>
+#         </widget>
+#         """).render(
+#             identifier=self.identifier
+#         )
+#
+#     @property
+#     def value(self):
+#         return self._value
+#
+#     @value.setter
+#     def value(self, value):
+#         self._value = value
+#         self.message({'event': 'value',
+#                       'value': value})
+
+
+class ProgressBar(Div):
+
+    def __init__(self, *args, style=None):
+        super().__init__(style={
+            'min-width': '300px',
+            'max-width': '300px',
+            'min-height': '28px',
+            'max-height': '28px',
+            'padding': '0px',
+            'border': '0px',
+            'margin': '8px',
+            'background-color': '#dddddd'
+        })
+
+        self.inner = Div(style={
+            'min-width': '0%',
+            'max-width': '0%',
+            'min-height': '28px',
+            'max-height': '28px',
+            'padding': '0px',
+            'border': '0px',
+            'margin': '0px',
+            'background-color': '#0000dd'
+        })
+
+        self.children = [self.inner]
+
+        self._value = 0
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value if value <= 100 else 100
+        self.inner.css({
+            'min-width': f'{self.value}%',
+            'max-width': f'{self.value}%'
+        })
 
 
