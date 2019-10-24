@@ -43,6 +43,7 @@ let APP = {
     }
 };
 
+
 class Widget {
 
     /**
@@ -73,6 +74,151 @@ class Widget {
         };
 
         console.log("[" + this.id + "] constructed!");
+    }
+
+    /**
+     * This runs during the constructor or when the wspromise,
+     * if provided, is fulfilled. Informs the server that this
+     * widget is ready.
+     */
+    onCommReady() {
+        APP.send({id: this.id, event: "started"});
+    }
+
+    /**
+     *
+     * @param {Event} event
+     * @param {{}} message
+     */
+    onMessage(event, message) {
+        console.log("[" + this.id + "] .onMessage()", message);
+
+        // Do not bubble up to parents in the DOM.
+        event.stopPropagation();
+
+        try {
+            for(let handler of this.msgHandlers[message.event]) {
+                handler(message);
+            }
+        }
+        catch (e) {
+            if(!(message.event in this.msgHandlers)) {
+                throw TypeError('No handler for event "' + message.event +
+                    '" in this widget: ' + this.id);
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Appends children sent from the server.
+     * @param {{}} message
+     */
+    onChildren(message) {
+        console.log("[" + this.id + "] .onChildren()");
+        this.node.empty();
+        for (let child of message.children) {
+            $(child).appendTo(this.node);
+        }
+    }
+
+    /**
+     * Appends one child sent from the server.
+     * @param {{}} message
+     */
+    onAppendChild(message) {
+        console.log("[" + this.id + "] .onAppendChild()");
+        $(message.child).appendTo(this.node);
+    }
+
+    /**
+     * Removes this widget.
+     * @param message
+     */
+    onRemoveChild(message) {
+        console.log("[" + this.id + "] .onRemoveChild()");
+        $("#_" + message.childid).remove();
+    }
+
+    onCSS(message) {
+        console.log("[" + this.id + "] .onCSS(): ", message.css);
+        this.node.css(message.css);
+    }
+
+    onAttr(message) {
+        console.log("[" + this.id + "] .onAttr(): ", message.attr);
+        this.node.attr(message.attr);
+    }
+
+    /**
+     * Set an event handler for a specific kind of message.
+     *
+     * @param {string} msgtype
+     * @param {function} handler
+     */
+    onMsgType(msgtype, handler) {
+        if (!(msgtype in this.msgHandlers)) {
+            this.msgHandlers[msgtype] = [];
+        }
+
+        this.msgHandlers[msgtype].push(handler.bind(this));
+    }
+
+}
+
+
+class Widget2 extends Backbone.View {
+
+    constructor(id, properties={}, wspromise=null) {
+        super();
+        this.id = id;  // cid is part of Backbone.View... use that?
+
+        this.model = new Backbone.Model(properties);
+
+        // The callback gets bind'ed.
+        this.listenTo(this.model, 'change', this.render);
+
+        this.model.on("change", function(){ console.log("Changed") });
+        this.wspromise = wspromise;
+
+        // Why is it undefined and not null?
+        if (this.wspromise === null || this.wspromise === undefined) {
+            console.log("this.wspromise is null/undefined");
+        }
+        else {
+            console.log("this.wspromise is ", this.wspromise);
+            this.wspromise.done(this.onCommReady.bind(this));
+        }
+
+        this.$el.on("message", this.onMessage.bind(this));
+
+        this.msgHandlers = {
+            children: [this.onChildren.bind(this)],
+            append: [this.onAppendChild.bind(this)],
+            remove: [this.onRemoveChild.bind(this)],
+            css: [this.onCSS.bind(this)],
+            attr: [this.onAttr.bind(this)]
+        };
+
+        console.log("[" + this.id + "] constructed!");
+    }
+
+    get template() {
+        return Handlebars.compile(
+            "<button>{{label}}</button>"
+        );
+    }
+
+    render() {
+        this.$el.html(this.template(this.model.toJSON()));
+    }
+
+    // get tagName() { return '#w' }
+
+    get events() {
+        return {}
     }
 
     /**

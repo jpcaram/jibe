@@ -10,7 +10,13 @@ html = """
 </head>
 <body>
     
-    {{body}}
+    <widget id="_topwidget">
+        <div class="widget" id="topwidget" style="display: flex; flex-direction: column;">
+        </div>
+        <script>
+        new Widget("topwidget", APP.wsopen);
+        </script>
+    </widget>
     
     <script language="JavaScript">
     

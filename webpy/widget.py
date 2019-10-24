@@ -122,9 +122,9 @@ class NoSuchEvent(Exception):
 
 class Widget:
 
-    def __init__(self, *args, style=None):
+    def __init__(self, *args, style=None, identifier=None):
 
-        self.identifier = ''.join(choice(letter) for _ in range(10))
+        self.identifier = identifier or ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
 
         self.browser_side_ready = False

@@ -7,7 +7,7 @@
 * Preserve state of a widget when removed and then added again.
   E.g. The value of an input. The style?
 
-* Multiple Apps, Multiple Users, Sessions
+* Multiple Apps, Multiple Users/Connections --DONE--, Sessions
 
 * Authentication
 
@@ -19,8 +19,10 @@ Small tasks:
 * Set attributes and style. -- DONE --
   - Styles done.
 * Image widget (w/ Matplotlib?) -- DONE --
+* Progress bar widget. --DONE--
+
+* Progress bar native widget.
 * App assets.
-* Progress bar widget
 * Container widgets to receive children in constructor parameters.
 
 
