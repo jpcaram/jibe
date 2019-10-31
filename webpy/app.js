@@ -43,6 +43,56 @@ let APP = {
     }
 };
 
+/**
+ * For use with Widget2 widgets.
+ */
+let APP2 = {
+    /**
+     * WebSocket for this app.
+     */
+    ws: null,
+
+    /**
+     * Widgets can use wsopen.done callback to ensure
+     * the WebSocket is open.
+     */
+    wsopen: $.Deferred(),
+
+    connect: function(url="ws://localhost:8881/websocket") {
+        this.ws = new WebSocket(url);
+
+        // Runs when the WebSocket connects. Resolved the wsopen
+        // promise/deferred.
+        this.ws.onopen = function() {
+            console.log("[APP] Websocket connection ready.");
+            this.topwidget = new Widget2("topwidget", {}, this.wsopen);
+            this.wsopen.resolve();
+        }.bind(this);
+
+        // Set WebSocket handler.
+        this.ws.onmessage = this.onWsMessage.bind(this);
+    },
+
+    /**
+     * Handler for WebSocket messages. These are routed to the
+     * widget indicated by the messgae's id.
+     * @param {Event} event
+     */
+    onWsMessage(event) {
+        let message = JSON.parse(event.data);
+
+        console.log("[APP] Message received: ", message);
+
+        if (message.id === 'topwidget') {
+            this.topwidget.onMessage(event, message);
+        }
+    },
+
+    send: function(message) {
+        this.ws.send(JSON.stringify(message));
+    },
+};
+
 
 class Widget {
 
@@ -169,13 +219,29 @@ class Widget {
 }
 
 
+/*****************************************************************
+ * Widgets based on Backbone.js
+ *
+ * How to use:
+ *
+ * w = Widget2("12345", ?);
+ * w.setElement($(something), model_props, wspromise);
+ * w.render();
+ *
+ *
+ * Notes:
+ *   w.$el is $(w.el)
+ */
 class Widget2 extends Backbone.View {
 
     constructor(id, properties={}, wspromise=null) {
         super();
+
         this.id = id;  // cid is part of Backbone.View... use that?
 
         this.model = new Backbone.Model(properties);
+
+        this.children = [];
 
         // The callback gets bind'ed.
         this.listenTo(this.model, 'change', this.render);
@@ -192,6 +258,11 @@ class Widget2 extends Backbone.View {
             this.wspromise.done(this.onCommReady.bind(this));
         }
 
+        /**
+         * Event on the DOM element.
+         * This is a JQuery event. To trigger do:
+         * $(el).trigger("message", message);
+         */
         this.$el.on("message", this.onMessage.bind(this));
 
         this.msgHandlers = {
@@ -213,6 +284,7 @@ class Widget2 extends Backbone.View {
 
     render() {
         this.$el.html(this.template(this.model.toJSON()));
+        return this;   // Useful convention
     }
 
     // get tagName() { return '#w' }
@@ -227,7 +299,7 @@ class Widget2 extends Backbone.View {
      * widget is ready.
      */
     onCommReady() {
-        APP.send({id: this.id, event: "started"});
+        APP2.send({id: this.id, event: "started"});
     }
 
     /**
@@ -263,10 +335,15 @@ class Widget2 extends Backbone.View {
      */
     onChildren(message) {
         console.log("[" + this.id + "] .onChildren()");
-        this.node.empty();
+        // this.node.empty();
+        // for (let child of message.children) {
+        //     $(child).appendTo(this.node);
+        // }
         for (let child of message.children) {
-            $(child).appendTo(this.node);
+            this.children.push(new Widget2(child.id, child.properties,
+                this.wspromise));
         }
+        this.render();
     }
 
     /**
@@ -275,7 +352,9 @@ class Widget2 extends Backbone.View {
      */
     onAppendChild(message) {
         console.log("[" + this.id + "] .onAppendChild()");
-        $(message.child).appendTo(this.node);
+        // $(message.child).appendTo(this.node);
+        this.children.push(new Widget2(message.child.id, message.child.properties,
+            this.wspromise));
     }
 
     /**
@@ -284,17 +363,20 @@ class Widget2 extends Backbone.View {
      */
     onRemoveChild(message) {
         console.log("[" + this.id + "] .onRemoveChild()");
-        $("#_" + message.childid).remove();
+        // $("#_" + message.childid).remove();
+        // TODO
     }
 
     onCSS(message) {
         console.log("[" + this.id + "] .onCSS(): ", message.css);
-        this.node.css(message.css);
+        // this.node.css(message.css);
+        // TODO
     }
 
     onAttr(message) {
         console.log("[" + this.id + "] .onAttr(): ", message.attr);
-        this.node.attr(message.attr);
+        // this.node.attr(message.attr);
+        // TODO
     }
 
     /**
