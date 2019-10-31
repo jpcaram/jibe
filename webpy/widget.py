@@ -1,6 +1,7 @@
 from random import choice
 from jinja2 import Template
 from typing import Callable, List
+import json
 
 
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
@@ -400,8 +401,12 @@ class Widget:
         :param msg: Message from the browser
         :return: None
         """
+        print(f"{self.__class__.__name__}.on_children(...)")
+        self.send_children()
+
+    def send_children(self):
         self.message({'event': 'children', 'children': [
-            child.html() for child in self.children
+            child.toJSON() for child in self.children
         ]})
 
     @event_handler("started")
@@ -416,9 +421,7 @@ class Widget:
 
         # These will get put in the outbox and delivered after.
         if len(self.children) > 0:
-            self.message({'event': 'children', 'children': [
-                child.html() for child in self.children
-            ]})
+            self.send_children()
 
         self.browser_side_ready = True
         for msg in self.outbox:
@@ -435,6 +438,24 @@ class Widget:
     def attr(self, attrs):
 
         self.message({'event': 'attr', 'attr': attrs})
+
+    def toJSON(self):
+        """
+        JSON representation of the object.
+
+        :return:
+        """
+
+        return {
+            'id': self.identifier,
+            'properties': {},
+            'attributes': {},
+            'style': {},
+            'tag': 'div',
+        }
+
+    def serialize(self):
+        return json.dumps(self.toJSON())
 
 
 class Div(Widget):
