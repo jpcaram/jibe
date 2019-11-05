@@ -5,8 +5,8 @@ from webpy import Widget, Button, Input, HBox, VBox
 
 class ExampleApp(MainApp):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.button = Button()
         self.inbox = Input()
@@ -33,6 +33,6 @@ class ExampleApp(MainApp):
 
 if __name__ == "__main__":
     # app = MainApp().make_app()
-    app = ExampleApp().make_app()
+    app = ExampleApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()

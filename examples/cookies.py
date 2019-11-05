@@ -1,5 +1,5 @@
 import tornado.ioloop
-from webpy import MainApp, WebSocketHandler, WebPyApplication
+from webpy import MainApp, WebSocketHandler
 from webpy import Widget, Button, Input, HBox, VBox
 
 
