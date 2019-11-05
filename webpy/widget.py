@@ -125,7 +125,7 @@ class Widget:
 
     def __init__(self, *args, style=None, identifier=None):
 
-        self.identifier = identifier or ''.join(choice(letter) for _ in range(10))
+        self.identifier = identifier or self.__class__.__name__ + '-' + ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
 
         self.browser_side_ready = False
@@ -249,7 +249,7 @@ class Widget:
         try:
             self.parent.update_descendents(self.descendent_index)
         except AttributeError:
-            print("This widget does not have a parent to notify about descendents.")
+            print(f"[{self.identifier}] This widget does not have a parent to notify about descendents.")
 
     def on_children_change(self):
         """
@@ -311,15 +311,15 @@ class Widget:
         except OrfanWidgetError:
             print("Temporarily allowing OrfanWidgetError!")
 
-    def html(self):
-        """
-        Generates the HTML for this widget in the browser.
-
-        :return: HTML text.
-        """
-        return Template('<widget id="_{{identifier}}"></widget>').render(
-            identifier=self.identifier
-        )
+    # def html(self):
+    #     """
+    #     Generates the HTML for this widget in the browser.
+    #
+    #     :return: HTML text.
+    #     """
+    #     return Template('<widget id="_{{identifier}}"></widget>').render(
+    #         identifier=self.identifier
+    #     )
 
     def __repr__(self):
         return f'{self.__class__.__name__}(id="{self.identifier}")'
@@ -351,7 +351,7 @@ class Widget:
         """
 
         msg['id'] = self.identifier
-
+        msg['path'] = []
         self.deliver(msg)
 
     def deliver(self, msg):
@@ -362,6 +362,11 @@ class Widget:
         :return:
         """
         print(f'{self.__class__.__name__}.deliver()')
+
+        # Queued messages will re-attempt delivery so the
+        # identifier will already be attached to the path.
+        if len(msg['path']) == 0 or msg['path'][0] != self.identifier:
+            msg['path'].insert(0, self.identifier)
 
         if not self.browser_side_ready:
             self.outbox.append(msg)
@@ -450,7 +455,7 @@ class Widget:
             'id': self.identifier,
             'properties': {},
             'attributes': {},
-            'style': {},
+            'style': self.style,
             'tag': 'div',
         }
 

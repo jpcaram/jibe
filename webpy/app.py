@@ -129,6 +129,11 @@ class MainApp(VBox):
         """
         print(f'{self.__class__.__name__}.deliver()')
 
+        # Queued messages will re-attempt delivery so the
+        # identifier will already be attached to the path.
+        if len(msg['path']) == 0 or msg['path'][0] != self.identifier:
+            msg['path'].insert(0, self.identifier)
+
         # if self.wshandler.connection is None:
         if not self.browser_side_ready:
             # Save the messages. They will be delivered when we open

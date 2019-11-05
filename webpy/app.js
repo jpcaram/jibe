@@ -65,7 +65,9 @@ let APP2 = {
         // promise/deferred.
         this.ws.onopen = function() {
             console.log("[APP] Websocket connection ready.");
-            this.topwidget = new Widget2("topwidget", {}, this.wsopen);
+            this.topwidget = new Widget2("topwidget", {}, this);
+            this.topwidget.setElement($('body'));
+
             this.wsopen.resolve();
         }.bind(this);
 
@@ -83,15 +85,67 @@ let APP2 = {
 
         console.log("[APP] Message received: ", message);
 
-        if (message.id === 'topwidget') {
-            this.topwidget.onMessage(event, message);
-        }
+        this.topwidget.local_deliver(message);
+
+        // if (message.id === 'topwidget') {
+        //     this.topwidget.onMessage(event, message);
+        // }
     },
 
     send: function(message) {
         this.ws.send(JSON.stringify(message));
     },
+
+    deliver: function(message) {
+        this.send(message);
+    },
+
+    outbox: []
+
 };
+
+// class APP2 extends Widget2 {
+//
+//     constructor(url="ws://localhost:8881/websocket") {
+//
+//         super('topwidget', {});
+//         this.wsopen = $.Deferred();
+//
+//         this.connect(url);
+//     }
+//
+//     connect(url="ws://localhost:8881/websocket") {
+//         this.ws = new WebSocket(url);
+//
+//         // Runs when the WebSocket connects. Resolved the wsopen
+//         // promise/deferred.
+//         this.ws.onopen = function() {
+//             console.log("[APP] Websocket connection ready.");
+//             this.wsopen.resolve();
+//         }.bind(this);
+//
+//         // Set WebSocket handler.
+//         this.ws.onmessage = this.onWsMessage.bind(this);
+//     }
+//
+//     /**
+//      * Handler for WebSocket messages. These are routed to the
+//      * widget indicated by the messgae's id.
+//      * @param {Event} event
+//      */
+//     onWsMessage(event) {
+//         let message = JSON.parse(event.data);
+//
+//         console.log("[APP] Message received: ", message);
+//
+//         $('#' + message.id).trigger('message', message);
+//     }
+//
+//     send(message) {
+//         this.ws.send(JSON.stringify(message));
+//     }
+//
+// };
 
 
 class Widget {
@@ -234,29 +288,27 @@ class Widget {
  */
 class Widget2 extends Backbone.View {
 
-    constructor(id, properties={}, wspromise=null) {
+    constructor(id, properties={}, parent) {
         super();
 
         this.id = id;  // cid is part of Backbone.View... use that?
 
         this.model = new Backbone.Model(properties);
 
+        // ----- New for Backbone Widget -----
         this.children = [];
+        this.setElement($('<div>'));
+
+        this.descendent_index = {};
+
+        this._parent = null;
+        this.parent = parent;
 
         // The callback gets bind'ed.
         this.listenTo(this.model, 'change', this.render);
 
-        this.model.on("change", function(){ console.log("Changed") });
-        this.wspromise = wspromise;
-
-        // Why is it undefined and not null?
-        if (this.wspromise === null || this.wspromise === undefined) {
-            console.log("this.wspromise is null/undefined");
-        }
-        else {
-            console.log("this.wspromise is ", this.wspromise);
-            this.wspromise.done(this.onCommReady.bind(this));
-        }
+        this.model.on("change",
+            function(){ console.log("Changed") });
 
         /**
          * Event on the DOM element.
@@ -273,7 +325,19 @@ class Widget2 extends Backbone.View {
             attr: [this.onAttr.bind(this)]
         };
 
+        this.message({event: "started"});
+
         console.log("[" + this.id + "] constructed!");
+    }
+
+    set parent(parent_widget) {
+        this._parent = parent_widget;
+        console.log(`[${this.id}] parent set (${parent_widget.id}).`);
+        // this.parent.update_descendents(this.descendent_index);
+    }
+
+    get parent() {
+        return this._parent;
     }
 
     get template() {
@@ -284,6 +348,9 @@ class Widget2 extends Backbone.View {
 
     render() {
         this.$el.html(this.template(this.model.toJSON()));
+        for (let child of this.children) {
+            this.$el.append(child.$el);
+        }
         return this;   // Useful convention
     }
 
@@ -293,13 +360,71 @@ class Widget2 extends Backbone.View {
         return {}
     }
 
+    message(msg) {
+        msg.id = this.id;
+        msg.path = [];
+        this.deliver(msg);
+    }
+
+    /**
+     * Get the message to the server.
+     *
+     * @param msg
+     */
+    deliver(msg) {
+        msg.path.unshift(this.id);  // At the beginning.
+
+        if (this.parent === undefined || this.parent === null) {
+            throw `This widget ${this.id} does not have a parent. Cannot deliver.`;
+        }
+
+        this.parent.deliver(msg);
+    }
+
+    /**
+     * Got this message from the server. Get to the right child.
+     *
+     * @param msg
+     */
+    local_deliver(msg) {
+        let dstid = msg.path.shift();
+
+        if (this.id === dstid && msg.path.length === 0) {
+            this.openMessage(msg);
+            return;
+        }
+
+        let child = this.get_child(msg.path[0]);
+        if (child != null) {
+            child.local_deliver(msg);
+        }
+        else {
+            throw `[${this.id}] No path to widget: ${msg.path.join('.')}`;
+        }
+    }
+
+    /**
+     * Get a child widget by id.
+     *
+     * @param id
+     * @returns {null|*}
+     */
+    get_child(id) {
+        for (let child of this.children) {
+            if (child.id === id) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     /**
      * This runs during the constructor or when the wspromise,
      * if provided, is fulfilled. Informs the server that this
      * widget is ready.
      */
     onCommReady() {
-        APP2.send({id: this.id, event: "started"});
+        this.message({event: "started"});
     }
 
     /**
@@ -313,6 +438,10 @@ class Widget2 extends Backbone.View {
         // Do not bubble up to parents in the DOM.
         event.stopPropagation();
 
+        this.openMessage(message);
+    }
+
+    openMessage(message) {
         try {
             for(let handler of this.msgHandlers[message.event]) {
                 handler(message);
@@ -340,8 +469,9 @@ class Widget2 extends Backbone.View {
         //     $(child).appendTo(this.node);
         // }
         for (let child of message.children) {
-            this.children.push(new Widget2(child.id, child.properties,
-                this.wspromise));
+            this.children.push(
+                new Widget2(child.id, child.properties, this)
+            );
         }
         this.render();
     }
@@ -353,8 +483,10 @@ class Widget2 extends Backbone.View {
     onAppendChild(message) {
         console.log("[" + this.id + "] .onAppendChild()");
         // $(message.child).appendTo(this.node);
-        this.children.push(new Widget2(message.child.id, message.child.properties,
-            this.wspromise));
+        this.children.push(
+            new Widget2(message.child.id, message.child.properties,
+            this)
+        );
     }
 
     /**
