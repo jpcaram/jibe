@@ -65,7 +65,7 @@ let APP2 = {
         // promise/deferred.
         this.ws.onopen = function() {
             console.log("[APP] Websocket connection ready.");
-            this.topwidget = new Widget2("topwidget", {}, this);
+            this.topwidget = new Widget2("topwidget", {}, this, {className: "widget"});
             this.topwidget.setElement($('body'));
 
             this.wsopen.resolve();
@@ -288,21 +288,32 @@ class Widget {
  */
 class Widget2 extends Backbone.View {
 
-    constructor(id, properties={}, parent) {
-        super();
+    constructor(id, properties={}, parent,
+                {attributes={}, style={}, tagName="div", className="widget", template=""} = {}) {
+
+        super({
+            className: className,
+            tagName: tagName
+        });
 
         this.id = id;  // cid is part of Backbone.View... use that?
+        console.log(`[${this.id}] constructor()`);
 
         this.model = new Backbone.Model(properties);
 
         // ----- New for Backbone Widget -----
         this.children = [];
-        this.setElement($('<div>'));
+        // this.className = cssclass;
+        // this.setElement($(`<${tag}>`));
+        this.$el.attr(attributes);
+        // this.$el.css(style);
 
         this.descendent_index = {};
 
         this._parent = null;
         this.parent = parent;
+
+        this.template_src = template;
 
         // The callback gets bind'ed.
         this.listenTo(this.model, 'change', this.render);
@@ -330,6 +341,10 @@ class Widget2 extends Backbone.View {
         console.log("[" + this.id + "] constructed!");
     }
 
+    initialize(options) {
+        console.log(`[${this.id}] initialize()`);
+    }
+
     set parent(parent_widget) {
         this._parent = parent_widget;
         console.log(`[${this.id}] parent set (${parent_widget.id}).`);
@@ -342,14 +357,16 @@ class Widget2 extends Backbone.View {
 
     get template() {
         return Handlebars.compile(
-            "<button>{{label}}</button>"
+            this.template_src
         );
     }
 
     render() {
+        // TODO: Perhaps we want to render this widget after the children.
         this.$el.html(this.template(this.model.toJSON()));
         for (let child of this.children) {
             this.$el.append(child.$el);
+            child.render();
         }
         return this;   // Useful convention
     }
@@ -470,7 +487,18 @@ class Widget2 extends Backbone.View {
         // }
         for (let child of message.children) {
             this.children.push(
-                new Widget2(child.id, child.properties, this)
+                new Widget2(
+                    child.id,
+                    child.properties,
+                    this,
+                    {   // TODO: Manually listing these is very error prone.
+                        attributes: child.attributes,
+                        style: child.style,
+                        tagName: child.tagName,
+                        className: child.className,
+                        template: child.template
+                    }
+                )
             );
         }
         this.render();

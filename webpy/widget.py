@@ -153,8 +153,18 @@ class Widget:
         self.style = {} if style is None else style
         """Style attribute"""
 
+        self.classname = "widget"
+
+        self.tagname = "div"
+
+        self.properties = {}
+
+        self.attributes = {}
+
         self.outbox = []
         """Message queue waiting for browser side to be ready."""
+
+        self.template_txt = ""
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name)).
@@ -250,6 +260,9 @@ class Widget:
             self.parent.update_descendents(self.descendent_index)
         except AttributeError:
             print(f"[{self.identifier}] This widget does not have a parent to notify about descendents.")
+
+    def template(self):
+        return self.template_txt
 
     def on_children_change(self):
         """
@@ -453,10 +466,12 @@ class Widget:
 
         return {
             'id': self.identifier,
-            'properties': {},
-            'attributes': {},
+            'properties': self.properties,
+            'attributes': self.attributes,
             'style': self.style,
-            'tag': 'div',
+            'tagName': self.tagname,
+            'className': self.classname,
+            'template': self.template()
         }
 
     def serialize(self):
@@ -534,25 +549,31 @@ class Button(Widget):
 
     def __init__(self, label="button", **kwargs):
         super().__init__(**kwargs)
-        self.label = label
+        self.tagname = "button"
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <button class="widget" id="{{identifier}}" style="{{style}}">{{label}}</button>
-        <script>
-        let b = new Widget("{{identifier}}", APP.wsopen);
-        b.node.on("click", function( event ) {
-            console.log({id:"{{identifier}}", event: 'click'});
-            APP.send({id:"{{identifier}}", event: 'click'});
-        });
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            label=self.label,
-            style=self.style_string()
-        )
+        self.template_txt = "{{ label }}"
+
+        self.properties = {
+            'label': label  # Todo: is this a reference?
+        }
+
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <button class="widget" id="{{identifier}}" style="{{style}}">{{label}}</button>
+    #     <script>
+    #     let b = new Widget("{{identifier}}", APP.wsopen);
+    #     b.node.on("click", function( event ) {
+    #         console.log({id:"{{identifier}}", event: 'click'});
+    #         APP.send({id:"{{identifier}}", event: 'click'});
+    #     });
+    #     </script>
+    #     </widget>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         label=self.label,
+    #         style=self.style_string()
+    #     )
 
     @event_handler("click")
     def on_click(self, msg):
@@ -572,27 +593,28 @@ class Input(Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.tagname = "input"
         self._value = ""
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <input class="widget" id="{{identifier}}" type="text" style="{{style}}">
-        <script>
-        let w = new Widget("{{identifier}}", APP.wsopen);
-        w.node.on("change", function(event) {
-            console.log({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
-            APP.send({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
-        });
-        w.onMsgType("value", function(message) {
-            this.node[0].value = message.value;
-        });
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            style=self.style_string()
-        )
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <input class="widget" id="{{identifier}}" type="text" style="{{style}}">
+    #     <script>
+    #     let w = new Widget("{{identifier}}", APP.wsopen);
+    #     w.node.on("change", function(event) {
+    #         console.log({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
+    #         APP.send({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
+    #     });
+    #     w.onMsgType("value", function(message) {
+    #         this.node[0].value = message.value;
+    #     });
+    #     </script>
+    #     </widget>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         style=self.style_string()
+    #     )
 
     @property
     def value(self):
