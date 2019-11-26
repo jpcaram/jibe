@@ -61,7 +61,7 @@ let APP2 = {
     connect: function(url="ws://localhost:8881/websocket") {
         this.ws = new WebSocket(url);
 
-        // Runs when the WebSocket connects. Resolved the wsopen
+        // Runs when the WebSocket connects. Resolves the wsopen
         // promise/deferred.
         this.ws.onopen = function() {
             console.log("[APP] Websocket connection ready.");
@@ -160,6 +160,8 @@ class Widget {
         this.id = id;
         this.node = $("#" + this.id);
 
+        // Check if the websocket is ready and define what to do
+        // when it becomes ready.
         if (wspromise === null) {
             this.onCommReady();
         }
@@ -167,8 +169,10 @@ class Widget {
             wspromise.done(this.onCommReady.bind(this));
         }
 
+        // Main message handler.
         this.node.on("message", this.onMessage.bind(this));
 
+        // Handlers per event type.
         this.msgHandlers = {
             children: [this.onChildren.bind(this)],
             append: [this.onAppendChild.bind(this)],
@@ -328,12 +332,14 @@ class Widget2 extends Backbone.View {
          */
         this.$el.on("message", this.onMessage.bind(this));
 
+        // Handlers per message type.
         this.msgHandlers = {
             children: [this.onChildren.bind(this)],
             append: [this.onAppendChild.bind(this)],
             remove: [this.onRemoveChild.bind(this)],
             css: [this.onCSS.bind(this)],
-            attr: [this.onAttr.bind(this)]
+            attr: [this.onAttr.bind(this)],
+            properties: [this.onProperties.bind(this)]
         };
 
         this.message({event: "started"});
@@ -362,6 +368,7 @@ class Widget2 extends Backbone.View {
     }
 
     render() {
+        console.log(`[${this.id}] render()`);
         // TODO: Perhaps we want to render this widget after the children.
         this.$el.html(this.template(this.model.toJSON()));
         for (let child of this.children) {
@@ -486,22 +493,45 @@ class Widget2 extends Backbone.View {
         //     $(child).appendTo(this.node);
         // }
         for (let child of message.children) {
-            this.children.push(
-                new Widget2(
-                    child.id,
-                    child.properties,
-                    this,
-                    {   // TODO: Manually listing these is very error prone.
-                        attributes: child.attributes,
-                        style: child.style,
-                        tagName: child.tagName,
-                        className: child.className,
-                        template: child.template
-                    }
-                )
-            );
+            this.children.push(this.fromJSON(child));
         }
         this.render();
+    }
+
+    /**
+     * Creates a Widget2 instance from its JSON representation.
+     *
+     * @param widgetJSON
+     * @returns {Widget2}
+     */
+    fromJSON(widgetJSON) {
+        
+        let newWidget = new Widget2(
+            widgetJSON.id,
+            widgetJSON.properties,
+            this,
+            {   // TODO: Manually listing these is very error prone.
+                attributes: widgetJSON.attributes,
+                style: widgetJSON.style,
+                tagName: widgetJSON.tagName,
+                className: widgetJSON.className,
+                template: widgetJSON.template
+            }
+        );
+
+        // Event handlers
+        for (let [handlerName, handlerBody] of Object.entries(widgetJSON.handlers)) {
+            newWidget.$el.on(handlerName, Function('event', handlerBody).bind(newWidget));
+        }
+
+        if (widgetJSON.render !== null) {
+            // this.listenTo(this.model, 'change', this.render);
+            newWidget.stopListening(newWidget.model, 'change', newWidget.render);
+            newWidget.render = Function(widgetJSON.render);
+            newWidget.listenTo(newWidget.model, 'change', newWidget.render);
+        }
+
+        return newWidget
     }
 
     /**
@@ -537,6 +567,12 @@ class Widget2 extends Backbone.View {
         console.log("[" + this.id + "] .onAttr(): ", message.attr);
         // this.node.attr(message.attr);
         // TODO
+    }
+
+    onProperties(message) {
+        console.log("[" + this.id + "] .onProperties(): ", message.properties);
+
+        this.model.set(message.properties, {source: 'message'});
     }
 
     /**

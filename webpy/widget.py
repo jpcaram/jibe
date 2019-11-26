@@ -45,10 +45,10 @@ class NotifyList(list):
 
 def callback_method_x(method: Callable, cbname: str) -> Callable:
     """
-    Used to attach callbacks to different methods that modify
+    Used to attach callbacks to different methods of list that modify
     the list, in NotifyList2.
 
-    :param method:
+    :param method: Method to which we attach the callback.
     :param cbname: Name of the method to be called as callback.
     :return: Wrapped method.
     """
@@ -58,7 +58,8 @@ def callback_method_x(method: Callable, cbname: str) -> Callable:
 
         :param self: The object on which method is being called.
         :param args: Varies. For append, args[0] is the item being added.
-        :param kwargs:
+        :param kwargs: Additional keyword arguments are passed to the
+            method and the callback.
         :return:
         """
         retval = method(self, *args, **kwargs)
@@ -70,6 +71,10 @@ def callback_method_x(method: Callable, cbname: str) -> Callable:
 
 
 class NotifyList2(list):
+    """
+    Extends list to support callbacks on different methods that
+    modify the contents of the list.
+    """
 
     def __init__(self, *args):
         list.__init__(self, *args)
@@ -161,10 +166,14 @@ class Widget:
 
         self.attributes = {}
 
+        self._jshandlers = {}
+
         self.outbox = []
         """Message queue waiting for browser side to be ready."""
 
         self.template_txt = ""
+
+        self._jsrender = None
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name)).
@@ -268,6 +277,10 @@ class Widget:
         """
         Called when the children attribute is assigned. Children are "adopted",
         i.e. their parent property is set to this widget.
+
+        This also triggers a call to self.update_descendents(). Actually,
+        each child calls it when it detects that its 'parent' member is
+        being set.
 
         :return: None
         """
@@ -423,6 +436,11 @@ class Widget:
         self.send_children()
 
     def send_children(self):
+        """
+        Serialize and send children to the browser.
+
+        :return: None
+        """
         self.message({'event': 'children', 'children': [
             child.toJSON() for child in self.children
         ]})
@@ -447,6 +465,11 @@ class Widget:
         self.outbox = []
 
     def style_string(self):
+        """
+        Serialize this widget's style member into a CSS compatible string.
+
+        :return: CSS string for this widget.
+        """
         return " ".join([f"{key}: {value};" for key, value in self.style.items()])
 
     def css(self, style):
@@ -471,7 +494,9 @@ class Widget:
             'style': self.style,
             'tagName': self.tagname,
             'className': self.classname,
-            'template': self.template()
+            'template': self.template(),
+            'handlers': self._jshandlers,
+            'render': self._jsrender
         }
 
     def serialize(self):
@@ -557,6 +582,10 @@ class Button(Widget):
             'label': label  # Todo: is this a reference?
         }
 
+        self._jshandlers['click'] = """
+            this.message({event: 'click'});
+        """
+
     # def html(self):
     #     return Template("""
     #     <widget id="_{{identifier}}">
@@ -592,9 +621,16 @@ class Button(Widget):
 class Input(Widget):
 
     def __init__(self, **kwargs):
+        super().__setattr__('properties', {})
         super().__init__(**kwargs)
+        self.properties['value'] = ''
+
         self.tagname = "input"
-        self._value = ""
+
+        self._jsrender = """
+            console.log(`[${this.id}] custom render():`);
+            this.el.value = this.model.get('value');
+        """
 
     # def html(self):
     #     return Template("""
@@ -616,15 +652,23 @@ class Input(Widget):
     #         style=self.style_string()
     #     )
 
-    @property
-    def value(self):
-        return self._value
+    # @property
+    # def value(self):
+    #     return self._value
+    #
+    # @value.setter
+    # def value(self, val):
+    #     print(f'{self.__class__.__name__}.value({val})')
+    #     self.message({'event': 'value', 'value': val})
+    #     self._value = val
 
-    @value.setter
-    def value(self, val):
-        print(f'{self.__class__.__name__}.value({val})')
-        self.message({'event': 'value', 'value': val})
-        self._value = val
+    def __setattr__(self, key, value):
+
+        if key in self.properties:
+            self.properties[key] = value
+            self.message({'event': 'properties', 'properties': {key: value}})
+        else:
+            super().__setattr__(key, value)
 
     @event_handler("change")
     def on_change(self, msg):
