@@ -167,6 +167,9 @@ class Widget:
         self.attributes = {}
 
         self._jshandlers = {}
+        """Defines the bodies of the callback functions in Javascript for
+        events occurring on the DOM element. The keys are the event names.
+        The 'this' object is the widget, not the DOM element."""
 
         self.outbox = []
         """Message queue waiting for browser side to be ready."""
@@ -174,6 +177,7 @@ class Widget:
         self.template_txt = ""
 
         self._jsrender = None
+        """Defines the body of the Javascript rendering function."""
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name)).
@@ -489,7 +493,7 @@ class Widget:
 
         return {
             'id': self.identifier,
-            'properties': self.properties,
+            'properties': self.properties,  # "model"
             'attributes': self.attributes,
             'style': self.style,
             'tagName': self.tagname,
@@ -632,6 +636,11 @@ class Input(Widget):
             this.el.value = this.model.get('value');
         """
 
+        self._jshandlers['change'] = """
+            console.log(`[${this.id}] custom change handler.`);
+            this.model.set('value', this.el.value);
+        """
+
     # def html(self):
     #     return Template("""
     #     <widget id="_{{identifier}}">
@@ -679,7 +688,10 @@ class Input(Widget):
         :return:
         """
         print(f'{self.__class__.__name__}.on_change({msg})')
-        self._value = msg['value']
+
+        # Use super().__setattr__ otherwise the update gets set
+        # to the client.
+        super().__setattr__('value', msg['properties']['value'])
         for subscriber in self.subscribers['change']:
             subscriber(self)
 

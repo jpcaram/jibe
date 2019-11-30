@@ -321,6 +321,15 @@ class Widget2 extends Backbone.View {
 
         // The callback gets bind'ed.
         this.listenTo(this.model, 'change', this.render);
+        this.listenTo(this.model, 'change',
+            function(model, options){
+            if (options.source == "message") {
+                console.log(`[${this.id}] model data change from server.`);
+            }
+            else {
+                console.log(`[${this.id}] model data change locally.`);
+                this.message({'event': 'change', 'properties': this.model.toJSON()}); }
+            });
 
         this.model.on("change",
             function(){ console.log("Changed") });
@@ -413,6 +422,7 @@ class Widget2 extends Backbone.View {
     local_deliver(msg) {
         let dstid = msg.path.shift();
 
+        // Oh! It's for me!
         if (this.id === dstid && msg.path.length === 0) {
             this.openMessage(msg);
             return;
@@ -520,6 +530,9 @@ class Widget2 extends Backbone.View {
         );
 
         // Event handlers
+        // Note: It may be convenient to use the view's delegateEvents instead of
+        // directly using jQuery's mechanism.
+
         for (let [handlerName, handlerBody] of Object.entries(widgetJSON.handlers)) {
             newWidget.$el.on(handlerName, Function('event', handlerBody).bind(newWidget));
         }
