@@ -129,6 +129,7 @@ class NoSuchEvent(Exception):
 class Widget:
 
     def __init__(self, *args, style=None, identifier=None):
+        super().__setattr__('properties', {})
 
         self.identifier = identifier or self.__class__.__name__ + '-' + ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
@@ -162,7 +163,7 @@ class Widget:
 
         self.tagname = "div"
 
-        self.properties = {}
+        # self.properties = {}
 
         self.attributes = {}
 
@@ -206,6 +207,14 @@ class Widget:
                     pass
 
         # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
+
+    def __setattr__(self, key, value):
+
+        if key in self.properties:
+            self.properties[key] = value
+            self.message({'event': 'properties', 'properties': {key: value}})
+        else:
+            super().__setattr__(key, value)
 
     @property
     def children(self):
@@ -509,19 +518,22 @@ class Widget:
 
 class Div(Widget):
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <div class="widget" id="{{identifier}}" style="{{style}}">
-        </div>
-        <script>
-        new Widget("{{identifier}}", APP.wsopen);
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            style=self.style_string()
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <div class="widget" id="{{identifier}}" style="{{style}}">
+    #     </div>
+    #     <script>
+    #     new Widget("{{identifier}}", APP.wsopen);
+    #     </script>
+    #     </widget>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         style=self.style_string()
+    #     )
 
     # @event_handler("started")
     # def on_started(self, msg):
@@ -530,18 +542,24 @@ class Div(Widget):
 
 class HBox(Widget):
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: row;">
-        </div>
-        <script>
-        new Widget("{{identifier}}", APP.wsopen);
-        </script>
-        """).render(
-            identifier=self.identifier,
-            style=self.style_string()
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, style={
+            'display': 'flex',
+            'flex-direction': 'row'
+        }, **kwargs)
+
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: row;">
+    #     </div>
+    #     <script>
+    #     new Widget("{{identifier}}", APP.wsopen);
+    #     </script>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         style=self.style_string()
+    #     )
 
     # @event_handler("started")
     # def on_started(self, msg):
@@ -549,20 +567,25 @@ class HBox(Widget):
 
 
 class VBox(Widget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, style={
+            'display': 'flex',
+            'flex-direction': 'column'
+        }, **kwargs)
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
-        </div>
-        <script>
-        new Widget("{{identifier}}", APP.wsopen);
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            style=self.style_string()
-        )
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
+    #     </div>
+    #     <script>
+    #     new Widget("{{identifier}}", APP.wsopen);
+    #     </script>
+    #     </widget>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         style=self.style_string()
+    #     )
 
     # @event_handler("started")
     # def on_started(self, msg):
@@ -623,10 +646,14 @@ class Button(Widget):
 
 
 class Input(Widget):
+    """
+
+    """
 
     def __init__(self, **kwargs):
-        super().__setattr__('properties', {})
+
         super().__init__(**kwargs)
+
         self.properties['value'] = ''
 
         self.tagname = "input"
@@ -640,44 +667,6 @@ class Input(Widget):
             console.log(`[${this.id}] custom change handler.`);
             this.model.set('value', this.el.value);
         """
-
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <input class="widget" id="{{identifier}}" type="text" style="{{style}}">
-    #     <script>
-    #     let w = new Widget("{{identifier}}", APP.wsopen);
-    #     w.node.on("change", function(event) {
-    #         console.log({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
-    #         APP.send({id:"{{identifier}}", event: 'change', value: event.currentTarget.value});
-    #     });
-    #     w.onMsgType("value", function(message) {
-    #         this.node[0].value = message.value;
-    #     });
-    #     </script>
-    #     </widget>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         style=self.style_string()
-    #     )
-
-    # @property
-    # def value(self):
-    #     return self._value
-    #
-    # @value.setter
-    # def value(self, val):
-    #     print(f'{self.__class__.__name__}.value({val})')
-    #     self.message({'event': 'value', 'value': val})
-    #     self._value = val
-
-    def __setattr__(self, key, value):
-
-        if key in self.properties:
-            self.properties[key] = value
-            self.message({'event': 'properties', 'properties': {key: value}})
-        else:
-            super().__setattr__(key, value)
 
     @event_handler("change")
     def on_change(self, msg):
@@ -885,15 +874,18 @@ class ProgressBar(Div):
 
         self.children = [self.inner]
 
-        self._value = 0
+        # self._value = 0
+
+        self.properties['value'] = 0
 
     @property
     def value(self):
-        return self._value
+        return self.properties['value']
 
     @value.setter
     def value(self, value):
-        self._value = value if value <= 100 else 100
+        # This is broken. Not being called.
+        self.properties['value'] = value if value <= 100 else 100
         self.inner.css({
             'min-width': f'{self.value}%',
             'max-width': f'{self.value}%'
