@@ -310,7 +310,7 @@ class Widget2 extends Backbone.View {
         // this.className = cssclass;
         // this.setElement($(`<${tag}>`));
         this.$el.attr(attributes);
-        // this.$el.css(style);
+        this.$el.css(style);
 
         this.descendent_index = {};
 
