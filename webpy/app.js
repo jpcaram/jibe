@@ -293,7 +293,15 @@ class Widget {
 class Widget2 extends Backbone.View {
 
     constructor(id, properties={}, parent,
-                {attributes={}, style={}, tagName="div", className="widget", template=""} = {}) {
+                {
+                    attributes={},
+                    style={},
+                    tagName="div",
+                    className="widget",
+                    template="",
+                    renderOnChange=true,
+                    notifyServerOnChange=true
+                } = {}) {
 
         super({
             className: className,
@@ -319,17 +327,23 @@ class Widget2 extends Backbone.View {
 
         this.template_src = template;
 
-        // The callback gets bind'ed.
-        this.listenTo(this.model, 'change', this.render);
-        this.listenTo(this.model, 'change',
-            function(model, options){
-            if (options.source == "message") {
-                console.log(`[${this.id}] model data change from server.`);
-            }
-            else {
-                console.log(`[${this.id}] model data change locally.`);
-                this.message({'event': 'change', 'properties': this.model.toJSON()}); }
-            });
+        // The callback gets bind'ed with this.listenTo.
+        if (renderOnChange) {
+            this.listenTo(this.model, 'change', this.render);
+        }
+
+        if (notifyServerOnChange) {
+            this.listenTo(this.model, 'change',
+                function (model, options) {
+                    if (options.source == "message") {
+                        console.log(`[${this.id}] model data change from server.`);
+                    } else {
+                        console.log(`[${this.id}] model data change locally.`);
+                        this.message({'event': 'change', 'properties': this.model.toJSON()});
+                    }
+                });
+
+        }
 
         this.model.on("change",
             function(){ console.log("Changed") });
@@ -525,7 +539,9 @@ class Widget2 extends Backbone.View {
                 style: widgetJSON.style,
                 tagName: widgetJSON.tagName,
                 className: widgetJSON.className,
-                template: widgetJSON.template
+                template: widgetJSON.template,
+                renderOnChange: widgetJSON.renderOnChange,
+                notifyServerOnChange: widgetJSON.notifyServerOnChange
             }
         );
 
@@ -572,8 +588,7 @@ class Widget2 extends Backbone.View {
 
     onCSS(message) {
         console.log("[" + this.id + "] .onCSS(): ", message.css);
-        // this.node.css(message.css);
-        // TODO
+        this.$el.css(message.css);
     }
 
     onAttr(message) {

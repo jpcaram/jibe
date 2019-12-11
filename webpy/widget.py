@@ -103,7 +103,7 @@ def event_handler(*args):
 
     Mark the method as an event handler. Simply sets the attribute
     event_register to the given arguments tuple. This attribute is then
-    checked by the constructor of the class.
+    checked by the constructor of the class (eg. Widget).
 
     :param args:
     :return:
@@ -118,6 +118,47 @@ def event_handler(*args):
     return decorator
 
 
+class LoudDict(dict):
+    """
+    A Dictionary with a callback for
+    item changes.
+    """
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.callback = lambda x: None
+
+    def __setitem__(self, key, value):
+        """
+        Overridden __setitem__ method. Will emit 'changed(QString)'
+        if the item was changed, with key as parameter.
+        """
+        if key in self and self.__getitem__(key) == value:
+            return
+
+        dict.__setitem__(self, key, value)
+        self.callback(key)
+
+    def update(self, *args, **kwargs):
+        if len(args) > 1:
+            raise TypeError("update expected at most 1 arguments, got %d" % len(args))
+        other = dict(*args, **kwargs)
+        for key in other:
+            self[key] = other[key]
+
+    def set_change_callback(self, callback):
+        """
+        Assigns a function as callback on item change. The callback
+        will receive the key of the object that was changed.
+
+        :param callback: Function to call on item change.
+        :type callback: func
+        :return: None
+        """
+
+        self.callback = callback
+
+
 class OrfanWidgetError(Exception):
     pass
 
@@ -128,8 +169,14 @@ class NoSuchEvent(Exception):
 
 class Widget:
 
-    def __init__(self, *args, style=None, identifier=None):
-        super().__setattr__('properties', {})
+    def __init__(self, *args, style=None, identifier=None,
+                 renderOnChange=True, notifyServerOnChange=True):
+        super().__setattr__('properties', LoudDict())
+        self.properties.set_change_callback(self.on_change)
+
+        self.renderOnChange = renderOnChange
+
+        self.notifyServerOnChange = notifyServerOnChange
 
         self.identifier = identifier or self.__class__.__name__ + '-' + ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
@@ -181,7 +228,7 @@ class Widget:
         """Defines the body of the Javascript rendering function."""
 
         # Process methods marked as event handlers
-        # (Decorated with @event_handler('event_name)).
+        # (Decorated with @event_handler('event_name')).
         for method_name in dir(self):
 
             # Skip properties
@@ -509,11 +556,16 @@ class Widget:
             'className': self.classname,
             'template': self.template(),
             'handlers': self._jshandlers,
-            'render': self._jsrender
+            'render': self._jsrender,
+            'renderOnChange': self.renderOnChange,
+            'notifyServerOnChange': self.notifyServerOnChange
         }
 
     def serialize(self):
         return json.dumps(self.toJSON())
+
+    def on_change(self, propname):
+        print(f"{self.__class__.__name__}.on_change('{propname}')")
 
 
 class Div(Widget):
@@ -869,23 +921,40 @@ class ProgressBar(Div):
             'padding': '0px',
             'border': '0px',
             'margin': '0px',
-            'background-color': '#0000dd'
+            'background-color': 'rgb(99, 99, 210)'
         })
 
         self.children = [self.inner]
 
-        # self._value = 0
-
         self.properties['value'] = 0
+
+        # We don't want to re-render when 'value' changes.
+        # We directly update CSS of self.inner instead.
+        self.renderOnChange = False
 
     @property
     def value(self):
+        print(f'{self.__class__.__name__} value property read)')
         return self.properties['value']
 
-    @value.setter
-    def value(self, value):
-        # This is broken. Not being called.
-        self.properties['value'] = value if value <= 100 else 100
+    # @value.setter
+    # def value(self, value):
+    #     # This is broken. Not being called.
+    #     self.properties['value'] = value if value <= 100 else 100
+    #     self.inner.css({
+    #         'min-width': f'{self.value}%',
+    #         'max-width': f'{self.value}%'
+    #     })
+
+    def on_change(self, propname):
+        print(f"{self.__class__.__name__}.on_change('{propname}')")
+
+        # Don't go past 100.
+        value = self.value if self.value <= 100 else 100
+
+        # Set the right value silently.
+        dict.__setitem__(self.properties, 'value', value)
+
         self.inner.css({
             'min-width': f'{self.value}%',
             'max-width': f'{self.value}%'
