@@ -271,6 +271,16 @@ class Widget:
         else:
             super().__setattr__(key, value)
 
+    def __getattr__(self, item):
+        """
+        Note: This gets called when the normal lookup fails, so we don't
+        need to handle the normal lookup here.
+        """
+        try:
+            return self.properties[item]
+        except KeyError:
+            raise AttributeError
+
     @property
     def children(self):
         return self._children
@@ -762,24 +772,28 @@ class Label(Widget):
 
     def __init__(self, value="", **kwargs):
         super().__init__(**kwargs)
-        self._value = value
+        self.properties['value'] = value
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <div class="widget" id="{{identifier}}" style="{{style}}">{{ value }}</div>
-        <script>
-        let w = new Widget("{{identifier}}", APP.wsopen);
-        w.onMsgType("value", function(message) {
-            this.innerHTML = message.value;
-        });
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            value=self._value,
-            style=self.style_string()
-        )
+        # self.tagname = "div"
+
+        self.template_txt = "{{ value }}"
+
+    # def html(self):
+    #     return Template("""
+    #     <widget id="_{{identifier}}">
+    #     <div class="widget" id="{{identifier}}" style="{{style}}">{{ value }}</div>
+    #     <script>
+    #     let w = new Widget("{{identifier}}", APP.wsopen);
+    #     w.onMsgType("value", function(message) {
+    #         this.innerHTML = message.value;
+    #     });
+    #     </script>
+    #     </widget>
+    #     """).render(
+    #         identifier=self.identifier,
+    #         value=self._value,
+    #         style=self.style_string()
+    #     )
 
 
 class CheckBox(Widget):

@@ -5,8 +5,8 @@ from webpy import Widget, Button, Input, HBox, VBox, CheckBox, Label
 
 class StylerApp(MainApp):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, connection):
+        super().__init__(connection)
 
         topbox = VBox()
         self.button_black = Button("Black", style={'margin': '3px'})
@@ -59,6 +59,7 @@ class StylerApp(MainApp):
 
 if __name__ == "__main__":
     # app = MainApp().make_app()
-    app = StylerApp().make_app()
+    # app = StylerApp().make_app()
+    app = StylerApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()
