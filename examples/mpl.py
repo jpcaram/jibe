@@ -11,8 +11,8 @@ import base64
 
 class MPLApp(MainApp):
 
-    def __init__(self):
-        super(MPLApp, self).__init__()
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.chart = Image()
         self.button1 = Button('Button 1')
@@ -71,6 +71,7 @@ class MPLApp(MainApp):
 
 if __name__ == "__main__":
     # app = MainApp().make_app()
-    app = MPLApp().make_app()
+    # app = MPLApp().make_app()
+    app = MPLApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()

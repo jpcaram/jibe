@@ -717,14 +717,26 @@ class Input(Widget):
 
         self.tagname = "input"
 
+        # _jshandlers appears as "hadlers" in the JSON representation.
+        # These events are attached to the DOM node. In this case,
+        # this is the event triggered when the text in the input
+        # box changes. Here we save it to the model. This will
+        # trigger the render method for the widget in the browser. See below.
+        self._jshandlers['change'] = """
+                    console.log(`[${this.id}] custom change handler.`);
+                    this.model.set('value', this.el.value);
+                """
+
+        # We don't need to render the widget in the DOM, just
+        # change it's 'value'.
+        # _jsrender appers as "render" in the JSON representation.
+        # TODO: Will this trigger the 'change' event in the DOM element
+        #   again, and therefore a 'change' in the model once more and
+        #   forever? In the model it may not get triggered again if the
+        #   value is not different.
         self._jsrender = """
             console.log(`[${this.id}] custom render():`);
             this.el.value = this.model.get('value');
-        """
-
-        self._jshandlers['change'] = """
-            console.log(`[${this.id}] custom change handler.`);
-            this.model.set('value', this.el.value);
         """
 
     @event_handler("change")
@@ -828,24 +840,11 @@ class CheckBox(Widget):
 
 class Image(Widget):
 
-    def __init__(self):
-        super().__init__()
-        self._data = ""
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    def html(self):
-
-        return Template("""
-        <widget id="_{{identifier}}">
-        <img class="widget" id="{{identifier}}" src="data:image/png;base64,{{ data }}" 
-            width="640" height="480" border="0" />
-        <script>
-        let w = new Widget("{{identifier}}", APP.wsopen);
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            data=self.data
-        )
+        self._data = ''
+        self.tagname = 'img'
 
     @property
     def data(self):
@@ -856,55 +855,6 @@ class Image(Widget):
         self._data = value
         self.message({'event': 'attr',
                       'attr': {'src': f'data:image/png;base64,{value}'}})
-
-
-# class ProgressBar(Widget):
-#
-#     def __init__(self):
-#         super().__init__()
-#         self._value = 0
-#
-#     def html(self):
-#
-#         return Template("""
-#         <widget id="_{{identifier}}">
-#         <div class="widget" id="{{identifier}}" style="
-#             min-width: 300px;
-#             max-width: 300px;
-#             min-height: 30px;
-#             max-height: 30px;
-#             padding: 0;
-#             border: 0;
-#             margin: 8px;
-#             background-color: #dddddd;
-#         ">
-#             <div style="
-#                 min-height: 30px;
-#                 min-width: 12%;
-#                 max-width: 12%;
-#                 margin: 0;
-#                 border: 0;
-#                 background-color: #00bb00;
-#             ">
-#             </div>
-#         </div>
-#         <script>
-#         let w = new Widget("{{identifier}}", APP.wsopen);
-#         </script>
-#         </widget>
-#         """).render(
-#             identifier=self.identifier
-#         )
-#
-#     @property
-#     def value(self):
-#         return self._value
-#
-#     @value.setter
-#     def value(self, value):
-#         self._value = value
-#         self.message({'event': 'value',
-#                       'value': value})
 
 
 class ProgressBar(Div):
