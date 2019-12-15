@@ -1,4 +1,4 @@
-from .app import MainApp, WebSocketHandler, WebPyApplication
+from .app import MainApp, WebSocketHandler
 from .widget import Widget, Button, Input, HBox, VBox, CheckBox, Label, NotifyList2, Image, ProgressBar
 
 __all__ = [
@@ -14,5 +14,4 @@ __all__ = [
     'Image',
     'ProgressBar',
     'WebSocketHandler',
-    'WebPyApplication'
 ]

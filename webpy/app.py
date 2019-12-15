@@ -69,6 +69,11 @@ class MainApp(VBox):
     # csshandler = CSSHandler
 
     def __init__(self, connection):
+        """
+
+        :param connection: Instance of
+            WebSocketHandler(tornado.websocket.WebSocketHandler)
+        """
         print(f'{self.__class__.__name__}.__init__()')
 
         super().__init__(identifier='topwidget')
@@ -93,6 +98,9 @@ class MainApp(VBox):
         Called by self.wshandler.open(). Here we deliver all queued meesages
         in self.outbox. self.deliver will queue the messages if
         self.wshandler.connection is None.
+
+        TODO: This may be redundant. I think the object is instantiated only once
+              the connection is established. See WebsocketHandler.open()
 
         :return: None
         """
@@ -182,9 +190,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         """
-        Opens the websocket connection. Accepts only one connection at this time.
-        Further connection attempts will raise a RuntimeError. A new connection
-        is accepted after this object's on_close() has been called.
+        Invoked when a new WebSocket is opened.
+
+        An instance of self.mainApp is created and saved in self.app.
 
         :return:
         """
@@ -198,6 +206,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #     print(f'Existing connection: {self.connection}')
         #     raise RuntimeError('WS is in use.')
         self.app = self.mainApp(self)
+        self.app.wsopen()  # TODO: This is redundant. Whatever is in there can
+                           #       be done in the constructor.
 
     # def instapp(self):
     #     return 0

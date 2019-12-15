@@ -1,13 +1,10 @@
-* The main app should be a container widget.
-  That way we can add/remove children dynamically. Otherwise there is
-  no way to add/remove.
-
-  To test, have a button that when clicked, adds labels.
 
 * Preserve state of a widget when removed and then added again.
   E.g. The value of an input. The style?
 
-* Multiple Apps, Multiple Users/Connections --DONE--, Sessions
+* Multiple Apps,
+* Multiple Users/Connections --DONE--,
+* Sessions
 
 * Authentication
 
@@ -29,3 +26,11 @@ Small tasks:
 Issues:
 
 * If MainApp does not have widgets? Common mistake.
+
+DONE
+-----
+
+* The main app should be a container widget.
+  That way we can add/remove children dynamically. Otherwise there is
+  no way to add/remove. To test, have a button that when clicked, adds labels.
+  -- DONE --

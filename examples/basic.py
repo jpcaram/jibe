@@ -10,8 +10,9 @@ class ExampleApp(MainApp):
 
         self.button = Button()
         self.inbox = Input()
+        self.inbox.value = 'The value'
 
-        self.box1 = HBox()
+        self.box1 = VBox()
         self.box1.children = [
             self.button,
             self.inbox

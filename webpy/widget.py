@@ -105,6 +105,14 @@ def event_handler(*args):
     event_register to the given arguments tuple. This attribute is then
     checked by the constructor of the class (eg. Widget).
 
+    Example:
+
+    Set @event_handler('click') on a method of a Widget. This will
+    define widget.subscribers['click']. In the marked mathod, call
+    the subscribers. The method will be called when the event is triggered.
+
+    Other can subscribe via widget.register('click', callback).
+
     :param args:
     :return:
     """
@@ -397,16 +405,6 @@ class Widget:
         except OrfanWidgetError:
             print("Temporarily allowing OrfanWidgetError!")
 
-    # def html(self):
-    #     """
-    #     Generates the HTML for this widget in the browser.
-    #
-    #     :return: HTML text.
-    #     """
-    #     return Template('<widget id="_{{identifier}}"></widget>').render(
-    #         identifier=self.identifier
-    #     )
-
     def __repr__(self):
         return f'{self.__class__.__name__}(id="{self.identifier}")'
 
@@ -544,7 +542,7 @@ class Widget:
         """
         JSON representation of the object.
 
-        :return:
+        :return: JSON-compatible object representation of this widget.
         """
 
         return {
@@ -562,9 +560,18 @@ class Widget:
         }
 
     def serialize(self):
+        """
+        Returns a string with a JSON representation of this widget.
+        """
         return json.dumps(self.toJSON())
 
     def on_change(self, propname):
+        """
+        Callback for change in self.properties.
+
+        :param propname: Name of the property that has changed.
+        :returns: None
+        """
         print(f"{self.__class__.__name__}.on_change('{propname}')")
 
 
@@ -732,7 +739,8 @@ class Input(Widget):
 
         # Use super().__setattr__ otherwise the update gets set
         # to the client.
-        super().__setattr__('value', msg['properties']['value'])
+
+        # super().__setattr__('value', msg['properties']['value'])
         for subscriber in self.subscribers['change']:
             subscriber(self)
 
@@ -936,15 +944,6 @@ class ProgressBar(Div):
     def value(self):
         print(f'{self.__class__.__name__} value property read)')
         return self.properties['value']
-
-    # @value.setter
-    # def value(self, value):
-    #     # This is broken. Not being called.
-    #     self.properties['value'] = value if value <= 100 else 100
-    #     self.inner.css({
-    #         'min-width': f'{self.value}%',
-    #         'max-width': f'{self.value}%'
-    #     })
 
     def on_change(self, propname):
         print(f"{self.__class__.__name__}.on_change('{propname}')")
