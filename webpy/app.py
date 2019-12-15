@@ -71,9 +71,10 @@ class MainApp(VBox):
     def __init__(self, connection):
         print(f'{self.__class__.__name__}.__init__()')
 
+        super().__init__(identifier='topwidget')
+
         self.connection = connection
 
-        super().__init__(identifier='topwidget')
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
         # self.wshandler.mainApp = self
