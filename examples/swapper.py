@@ -5,8 +5,8 @@ from webpy import Widget, Button, Input, HBox, VBox, CheckBox, Label
 
 class SwapperApp(MainApp):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.button = Button("Swap", style={'margin': '3px'})
         self.secbox = HBox()
@@ -43,6 +43,7 @@ class SwapperApp(MainApp):
 
 
 if __name__ == "__main__":
-    app = SwapperApp().make_app()
+    # app = SwapperApp().make_app()
+    app = SwapperApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()
