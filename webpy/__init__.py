@@ -1,5 +1,7 @@
 from .app import MainApp, WebSocketHandler
-from .widget import Widget, Button, Input, HBox, VBox, CheckBox, Label, NotifyList2, Image, ProgressBar
+from .widget import Widget, Button, Input, HBox, VBox, \
+    CheckBox, Label, NotifyList2, Image, ProgressBar, \
+    Dropdown
 
 __all__ = [
     'MainApp',
@@ -14,4 +16,5 @@ __all__ = [
     'Image',
     'ProgressBar',
     'WebSocketHandler',
+    "Dropdown"
 ]
