@@ -590,24 +590,6 @@ class Div(Widget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <div class="widget" id="{{identifier}}" style="{{style}}">
-    #     </div>
-    #     <script>
-    #     new Widget("{{identifier}}", APP.wsopen);
-    #     </script>
-    #     </widget>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         style=self.style_string()
-    #     )
-
-    # @event_handler("started")
-    # def on_started(self, msg):
-    #     self.on_children(msg)
-
 
 class HBox(Widget):
 
@@ -617,48 +599,17 @@ class HBox(Widget):
             'flex-direction': 'row'
         }, **kwargs)
 
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: row;">
-    #     </div>
-    #     <script>
-    #     new Widget("{{identifier}}", APP.wsopen);
-    #     </script>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         style=self.style_string()
-    #     )
-
-    # @event_handler("started")
-    # def on_started(self, msg):
-    #     self.on_children(msg)
-
 
 class VBox(Widget):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, style={
+        style = {
             'display': 'flex',
             'flex-direction': 'column'
-        }, **kwargs)
-
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <div class="widget" id="{{identifier}}" style="display: flex; flex-direction: column; {{style}}">
-    #     </div>
-    #     <script>
-    #     new Widget("{{identifier}}", APP.wsopen);
-    #     </script>
-    #     </widget>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         style=self.style_string()
-    #     )
-
-    # @event_handler("started")
-    # def on_started(self, msg):
-    #     self.on_children(msg)
+        }
+        if 'style' in kwargs:
+            style.update(kwargs['style'])
+            del kwargs['style']
+        super().__init__(*args, style=style, **kwargs)
 
 
 class Button(Widget):
@@ -682,24 +633,6 @@ class Button(Widget):
             this.message({event: 'click'});
         """
 
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <button class="widget" id="{{identifier}}" style="{{style}}">{{label}}</button>
-    #     <script>
-    #     let b = new Widget("{{identifier}}", APP.wsopen);
-    #     b.node.on("click", function( event ) {
-    #         console.log({id:"{{identifier}}", event: 'click'});
-    #         APP.send({id:"{{identifier}}", event: 'click'});
-    #     });
-    #     </script>
-    #     </widget>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         label=self.label,
-    #         style=self.style_string()
-    #     )
-
     @event_handler("click")
     def on_click(self, msg):
         """
@@ -716,27 +649,33 @@ class Button(Widget):
 
 class Input(Widget):
     """
+    Single-line text input.
 
+    Supported events: change.
     """
 
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
 
+        # Do not overwrite self.properties. It is a LoudDict configured
+        # to trigger events on change. Only create and assign to items.
         self.properties['value'] = ''
 
         self.tagname = "input"
 
+        # DOM NODE HANDLERS
         # _jshandlers appears as "hadlers" in the JSON representation.
         # These events are attached to the DOM node. In this case,
         # this is the event triggered when the text in the input
         # box changes. Here we save it to the model. This will
         # trigger the render method for the widget in the browser. See below.
         self._jshandlers['change'] = """
-                    console.log(`[${this.id}] custom change handler.`);
-                    this.model.set('value', this.el.value);
-                """
+            console.log(`[${this.id}] custom change handler.`);
+            this.model.set('value', this.el.value);
+        """
 
+        # RENDER METHOD OVERRIDE
         # We don't need to render the widget in the DOM, just
         # change it's 'value'.
         # _jsrender appers as "render" in the JSON representation.
@@ -767,6 +706,68 @@ class Input(Widget):
             subscriber(self)
 
 
+class Dropdown(Widget):
+
+    def __init__(self, value=None, options=None, **kwargs):
+
+        super().__init__(**kwargs)
+
+        self.tagname = 'select'
+
+        # Different combinations for defaults when
+        # value and/or options is missing.
+        if value is None and options is not None:
+            value = options[0]
+        elif value is not None and options is None:
+            options = [value]
+        else:
+            options = []
+            value = None
+
+        self.properties.update({
+            'value': value,
+            'options': options
+        })
+
+        self.template_txt = """
+            {{#each options}}
+                <option value="{{this}}"
+                {{#if_eq ../value this}}
+                selected
+                {{/if_eq}}
+                >{{this}}</option>
+            {{/each}}
+        """
+
+        # DOM NODE HANDLERS
+        # _jshandlers appears as "hadlers" in the JSON representation.
+        # These events are attached to the DOM node. In this case,
+        # this is the event triggered when the selection on the
+        # dropdown changes. Here we save it to the model. This will
+        # trigger the render method for the widget in the browser. See below.
+        self._jshandlers['change'] = """
+            console.log(`[${this.id}] custom change handler.`);
+            this.model.set('value', this.el.value);
+        """
+
+    @event_handler("change")
+    def on_change(self, msg):
+        """
+        Event handler for the "change" event.
+
+        :param msg:
+        :return:
+        """
+        print(f'{self.__class__.__name__}.on_change({msg})')
+
+        # Use super().__setattr__ otherwise the update gets set
+        # to the client.
+
+        # super().__setattr__('value', msg['properties']['value'])
+        for subscriber in self.subscribers['change']:
+            subscriber(self)
+
+
 class Label(Widget):
     # TODO: value should be an attribute!
 
@@ -774,26 +775,10 @@ class Label(Widget):
         super().__init__(**kwargs)
         self.properties['value'] = value
 
+        # This is the default. Not needed:
         # self.tagname = "div"
 
         self.template_txt = "{{ value }}"
-
-    # def html(self):
-    #     return Template("""
-    #     <widget id="_{{identifier}}">
-    #     <div class="widget" id="{{identifier}}" style="{{style}}">{{ value }}</div>
-    #     <script>
-    #     let w = new Widget("{{identifier}}", APP.wsopen);
-    #     w.onMsgType("value", function(message) {
-    #         this.innerHTML = message.value;
-    #     });
-    #     </script>
-    #     </widget>
-    #     """).render(
-    #         identifier=self.identifier,
-    #         value=self._value,
-    #         style=self.style_string()
-    #     )
 
 
 class CheckBox(Widget):
