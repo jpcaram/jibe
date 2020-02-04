@@ -393,6 +393,7 @@ class Widget2 extends Backbone.View {
     render() {
         console.log(`[${this.id}] render()`);
         // TODO: Perhaps we want to render this widget after the children.
+        this.$el.empty();
         this.$el.html(this.template(this.model.toJSON()));
         for (let child of this.children) {
             this.$el.append(child.$el);
@@ -516,6 +517,7 @@ class Widget2 extends Backbone.View {
         // for (let child of message.children) {
         //     $(child).appendTo(this.node);
         // }
+        this.children = [];
         for (let child of message.children) {
             this.children.push(this.fromJSON(child));
         }
