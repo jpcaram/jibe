@@ -12,14 +12,16 @@ class ExampleApp(MainApp):
         self.inbox = Input()
         self.inbox.value = 'The value'
 
-        self.box1 = VBox()
-        self.box1.children = [
-            self.button,
-            self.inbox
-        ]
+        # self.box1 = VBox()
+        # self.box1.children = [
+        #     self.button,
+        #     self.inbox
+        # ]
 
         self.children = [
-            self.box1
+            # self.box1
+            self.button,
+            self.inbox
         ]
 
         self.button.register('click', self.on_button_click)
@@ -33,7 +35,6 @@ class ExampleApp(MainApp):
 
 
 if __name__ == "__main__":
-    # app = MainApp().make_app()
     app = ExampleApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()

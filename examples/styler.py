@@ -4,6 +4,10 @@ from webpy import Widget, Button, Input, HBox, VBox, CheckBox, Label
 
 
 class StylerApp(MainApp):
+    """
+    Set CSS styles dynamically from the server. Changes the styles of
+    a text upon clicking on certain buttons.
+    """
 
     def __init__(self, connection):
         super().__init__(connection)

@@ -43,7 +43,6 @@ class SwapperApp(MainApp):
 
 
 if __name__ == "__main__":
-    # app = SwapperApp().make_app()
     app = SwapperApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()

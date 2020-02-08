@@ -2,14 +2,19 @@ import tornado.ioloop
 from webpy import MainApp
 from webpy import Widget, Button, Input, HBox, VBox, CheckBox, Label, Image
 import matplotlib
-matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import numpy as np
 import base64
 
+matplotlib.use('AGG')
+
 
 class MPLApp(MainApp):
+    """
+    Images and dynamic update. Specifically, we plot some curves
+    using the Matplotlib plotting library.
+    """
 
     def __init__(self, connection):
         super().__init__(connection)
@@ -70,8 +75,6 @@ class MPLApp(MainApp):
 
 
 if __name__ == "__main__":
-    # app = MainApp().make_app()
-    # app = MPLApp().make_app()
     app = MPLApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()
