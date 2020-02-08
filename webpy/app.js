@@ -141,14 +141,6 @@ class Widget2 extends Backbone.View {
         this.model.on("change",
             function(){ console.log("Changed") });
 
-        /**
-         * Event on the DOM element.
-         * This is a JQuery event. To trigger do:
-         * $(el).trigger("message", message);
-         */
-        this.$el.on("message", this.onMessage.bind(this));
-        // TODO: This above does not appear to be used any more.
-
         // Handlers per message type.
         this.msgHandlers = {
             children: [this.onChildren.bind(this)],
@@ -266,20 +258,6 @@ class Widget2 extends Backbone.View {
      */
     onCommReady() {
         this.message({event: "started"});
-    }
-
-    /**
-     *
-     * @param {Event} event
-     * @param {{}} message
-     */
-    onMessage(event, message) {
-        console.log("[" + this.id + "] .onMessage()", message);
-
-        // Do not bubble up to parents in the DOM.
-        event.stopPropagation();
-
-        this.openMessage(message);
     }
 
     openMessage(message) {
