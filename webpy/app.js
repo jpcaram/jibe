@@ -1,5 +1,3 @@
-
-
 /**
  * For use with Widget2 widgets.
  */
@@ -43,12 +41,12 @@ let APP2 = {
         console.log("[APP] Message received: ", message);
 
         this.topwidget.local_deliver(message);
-
-        // if (message.id === 'topwidget') {
-        //     this.topwidget.onMessage(event, message);
-        // }
     },
 
+    /**
+     * Sends a message to the server.
+     * @param message
+     */
     send: function(message) {
         this.ws.send(JSON.stringify(message));
     },
@@ -59,7 +57,7 @@ let APP2 = {
 
     setup: function() {
         Handlebars.registerHelper('if_eq', function(a, b, opts) {
-            if (a == b) {
+            if (a === b) {
                 return opts.fn(this);
             } else {
                 return opts.inverse(this);
@@ -149,6 +147,7 @@ class Widget2 extends Backbone.View {
          * $(el).trigger("message", message);
          */
         this.$el.on("message", this.onMessage.bind(this));
+        // TODO: This above does not appear to be used any more.
 
         // Handlers per message type.
         this.msgHandlers = {
@@ -196,8 +195,6 @@ class Widget2 extends Backbone.View {
         }
         return this;   // Useful convention
     }
-
-    // get tagName() { return '#w' }
 
     get events() {
         return {}
@@ -361,7 +358,8 @@ class Widget2 extends Backbone.View {
     }
 
     /**
-     * Appends one child sent from the server.
+     * Appends one child sent from the server. This is triggered when
+     * a message is received from the server and msg.event == 'append'.
      * @param {{}} message
      */
     onAppendChild(message) {
