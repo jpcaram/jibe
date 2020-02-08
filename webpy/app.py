@@ -35,38 +35,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(htmlt.render(body=''))
 
 
-class JSHandler(tornado.web.RequestHandler):
-    """
-    Serves app.js
-    """
-
-    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
-        pass
-
-    def get(self):
-        with open(f'{Path(__file__).parent.absolute()}/app.js') as f:
-            self.write(f.read())
-
-
-class CSSHandler(tornado.web.RequestHandler):
-    """
-    Serves app.js
-    """
-
-    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
-        pass
-
-    def get(self):
-        with open(f'{Path(__file__).parent.absolute()}/app.css') as f:
-            self.write(f.read())
-
-
 class MainApp(VBox):
-
-    # wshandler = WebSocketHandler
-    # mainhandler = MainHandler
-    # jshandler = JSHandler
-    # csshandler = CSSHandler
 
     def __init__(self, connection):
         """
@@ -81,17 +50,6 @@ class MainApp(VBox):
         self.connection = connection
 
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
-
-        # self.wshandler.mainApp = self
-        # self.mainhandler.mainApp = self
-
-    # def make_app(self):
-    #     return tornado.web.Application([
-    #         (r"/", self.mainhandler),
-    #         (r"/websocket", self.wshandler),
-    #         (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
-    #         (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
-    #     ])
 
     def wsopen(self):
         """
