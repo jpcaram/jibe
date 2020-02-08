@@ -7,46 +7,48 @@ import json
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 
-def callback_method(func):
-    """
-    Used to wrap methods such that _callbacks in the class
-    are called immediately after the method.
-
-    :param func: Method to be wrapped.
-    :return: Wrapped method.
-    """
-
-    def notify(self, *args, **kwargs):
-        retval = func(self, *args, **kwargs)
-        for callback in self._callbacks:
-            callback(self, *args, **kwargs)
-        return retval
-
-    return notify
-
-
-class NotifyList(list):
-    """
-    Extends list to support a callback on change.
-    """
-    extend = callback_method(list.extend)
-    append = callback_method(list.append)
-    remove = callback_method(list.remove)
-    pop = callback_method(list.pop)
-    __delitem__ = callback_method(list.__delitem__)
-    __setitem__ = callback_method(list.__setitem__)
-    __iadd__ = callback_method(list.__iadd__)
-    __imul__ = callback_method(list.__imul__)
-
-    def __init__(self, *args):
-        list.__init__(self, *args)
-        self._callbacks = []
+# def callback_method(func):
+#     """
+#     Used to wrap methods such that _callbacks in the class
+#     are called immediately after the method.
+#
+#     :param func: Method to be wrapped.
+#     :return: Wrapped method.
+#     """
+#
+#     def notify(self, *args, **kwargs):
+#         retval = func(self, *args, **kwargs)
+#         for callback in self._callbacks:
+#             callback(self, *args, **kwargs)
+#         return retval
+#
+#     return notify
+#
+#
+# class NotifyList(list):
+#     """
+#     Extends list to support a callback on change.
+#     """
+#     extend = callback_method(list.extend)
+#     append = callback_method(list.append)
+#     remove = callback_method(list.remove)
+#     pop = callback_method(list.pop)
+#     __delitem__ = callback_method(list.__delitem__)
+#     __setitem__ = callback_method(list.__setitem__)
+#     __iadd__ = callback_method(list.__iadd__)
+#     __imul__ = callback_method(list.__imul__)
+#
+#     def __init__(self, *args):
+#         list.__init__(self, *args)
+#         self._callbacks = []
 
 
 def callback_method_x(method: Callable, cbname: str) -> Callable:
     """
     Used to attach callbacks to different methods of list that modify
     the list, in NotifyList2.
+
+    The list is modified first. Then the callback is invoked.
 
     :param method: Method to which we attach the callback.
     :param cbname: Name of the method to be called as callback.
@@ -74,6 +76,8 @@ class NotifyList2(list):
     """
     Extends list to support callbacks on different methods that
     modify the contents of the list.
+
+    The list is modified first. Then the callback is invoked.
     """
 
     def __init__(self, *args):
@@ -300,8 +304,11 @@ class Widget:
         """
         print(f'{self.__class__.__name__}.children({value})')
 
-        self._children = NotifyList(value)
-        self._children._callbacks.append(self.on_children_change)
+        self._children = NotifyList2(value)
+        # What to do when we make changes to self._children.
+        self._children._on_append_callbacks.append(self.on_children_append)
+        self._children._on_remove_callbacks.append(self.on_children_remove)
+
         self.on_children_change()
 
     @property
@@ -392,11 +399,7 @@ class Widget:
         print(f'{repr(self)} adopting child: {repr(child)}')
         child.parent = self
 
-        # TODO: Temporary experiment
-        try:
-            self.message({'event': 'append', 'child': child.html()})
-        except OrfanWidgetError:
-            print("Temporarily allowing OrfanWidgetError!")
+        self.message({'event': 'append', 'child': child.toJSON()})
 
     def on_children_remove(self, *args, **kwargs):
         """
@@ -769,9 +772,24 @@ class Dropdown(Widget):
 
 
 class Label(Widget):
-    # TODO: value should be an attribute!
+    """
+    Simple text label.
+
+    The 'value' member is the text shown in the label. This
+    member is part of the object's model, therefore it is
+    immediately synchronized and updated in the browser
+    when it changes.
+    """
 
     def __init__(self, value="", **kwargs):
+        """
+        Simple text label.
+
+        :param value: Text of the label.
+        :type value: str
+        :param kwargs: All other named arguments are passed intact
+                       to the parent (Widget).
+        """
         super().__init__(**kwargs)
         self.properties['value'] = value
 

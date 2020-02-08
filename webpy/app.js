@@ -85,6 +85,21 @@ let APP2 = {
  */
 class Widget2 extends Backbone.View {
 
+    /**
+     *
+     * @param id Unique identifier.
+     * @param properties Data in the widget's model.
+     * @param parent Parent widget.
+     * @param attributes HTML tag attributes.
+     * @param style CSS style
+     * @param tagName Name of the HTML tag. Default is "div".
+     * @param className Class of the DOM element. Default is "widget"
+     * @param template Template text.
+     * @param renderOnChange Flag to run the render method when the model changes.
+     *        Default is true.
+     * @param notifyServerOnChange Flag to notify the server when the model changes.
+     *        Default is true.
+     */
     constructor(id, properties={}, parent,
                 {
                     attributes={},
@@ -176,6 +191,11 @@ class Widget2 extends Backbone.View {
         );
     }
 
+    /**
+     * Renders the widget itself, its children and appends their DOM
+     * nodes to this widget's DOM node.
+     * @returns {Widget2}
+     */
     render() {
         console.log(`[${this.id}] render()`);
         // TODO: Perhaps we want to render this widget after the children.
@@ -260,6 +280,11 @@ class Widget2 extends Backbone.View {
         this.message({event: "started"});
     }
 
+    /**
+     * Handle a message for this object.
+     * Called by this.local_delivery().
+     * @param message
+     */
     openMessage(message) {
         try {
             for(let handler of this.msgHandlers[message.event]) {
@@ -279,23 +304,24 @@ class Widget2 extends Backbone.View {
 
     /**
      * Appends children sent from the server.
+     * Handles messages when msg.event == "children".
      * @param {{}} message
      */
     onChildren(message) {
         console.log("[" + this.id + "] .onChildren()");
-        // this.node.empty();
-        // for (let child of message.children) {
-        //     $(child).appendTo(this.node);
-        // }
+
         this.children = [];
         for (let child of message.children) {
             this.children.push(this.fromJSON(child));
         }
+
+        // Handles all rendering, and appending of children.
         this.render();
     }
 
     /**
      * Creates a Widget2 instance from its JSON representation.
+     * The new widget has its parent set to this widget.
      *
      * @param widgetJSON
      * @returns {Widget2}
@@ -305,7 +331,7 @@ class Widget2 extends Backbone.View {
         let newWidget = new Widget2(
             widgetJSON.id,
             widgetJSON.properties,
-            this,
+            this,  // parent
             {   // TODO: Manually listing these is very error prone.
                 attributes: widgetJSON.attributes,
                 style: widgetJSON.style,
@@ -338,15 +364,21 @@ class Widget2 extends Backbone.View {
     /**
      * Appends one child sent from the server. This is triggered when
      * a message is received from the server and msg.event == 'append'.
+     *
+     * The child is immediately added to the children list, rendered
+     * and appended to the DOM.
+     *
      * @param {{}} message
      */
     onAppendChild(message) {
         console.log("[" + this.id + "] .onAppendChild()");
-        // $(message.child).appendTo(this.node);
-        this.children.push(
-            new Widget2(message.child.id, message.child.properties,
-            this)
-        );
+
+        let child = this.fromJSON(message.child);
+
+        // TODO: Figure out how to append and render only what is new in children.
+        this.children.push(child);
+        child.render();
+        this.$el.append(child.$el);
     }
 
     /**
