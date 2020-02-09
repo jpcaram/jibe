@@ -1,6 +1,6 @@
 import tornado.ioloop
 from webpy import MainApp
-from webpy import Input, HBox, VBox, Dropdown
+from webpy import Dropdown
 
 
 class ExampleApp(MainApp):

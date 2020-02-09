@@ -62,8 +62,6 @@ class StylerApp(MainApp):
 
 
 if __name__ == "__main__":
-    # app = MainApp().make_app()
-    # app = StylerApp().make_app()
     app = StylerApp.make_tornado_app()
     app.listen(8881)
     tornado.ioloop.IOLoop.current().start()
