@@ -1,10 +1,12 @@
-from .app import MainApp, WebSocketHandler
+from .app import MainApp, WebSocketHandler, MainHandler
 from .widget import Widget, Button, Input, HBox, VBox, \
     CheckBox, Label, NotifyList2, Image, ProgressBar, \
-    Dropdown
+    Dropdown, Redirect
+from .page import htmlt
 
 __all__ = [
     'MainApp',
+    'MainHandler',
     'Widget',
     'Button',
     'Input',
@@ -16,5 +18,7 @@ __all__ = [
     'Image',
     'ProgressBar',
     'WebSocketHandler',
-    "Dropdown"
+    "Dropdown",
+    "Redirect",
+    "htmlt"
 ]

@@ -1,7 +1,7 @@
 import tornado.web
 import tornado.websocket
+import tornado.ioloop
 import json
-from jinja2 import Template
 from .widget import Widget, VBox
 from .page import htmlt
 from typing import List, Dict, Optional, Awaitable
@@ -18,27 +18,22 @@ class MainHandler(tornado.web.RequestHandler):
     the application.
     """
 
-    # mainApp = None
-    """Instance of the mainApp."""
-
     def get(self):
-
-        # body = "{}".format(
-        #     self.mainApp.html()  # Serves the top level widgets.
-        # )
 
         sessionid = self.get_cookie("sessionid")
         if not sessionid:
             sessionid = ''.join(choice(letter) for _ in range(10))
             self.set_cookie("sessionid", sessionid)
 
-        self.write(htmlt.render(body=''))
+        self.write(htmlt.render(body='', appname=''))
 
 
 class MainApp(VBox):
 
     def __init__(self, connection):
         """
+        The MainApp class represents the top-level widget of a page.
+        Extend this class to create a single-page web application.
 
         :param connection: Instance of
             WebSocketHandler(tornado.websocket.WebSocketHandler)
@@ -71,7 +66,7 @@ class MainApp(VBox):
         """
         Called by the websocket handler's on_message. Overrides
         the parent widget's on_message. Delivers the message to
-        the parent (super) or to descendents.
+        the parent class (super) or to descendents (children).
 
         :param msg: The message from the client.
         :return: None
@@ -127,6 +122,18 @@ class MainApp(VBox):
             ]
         )
 
+    @classmethod
+    def run(cls, port=8881):
+        """
+        Single App quick starter.
+
+        :param port: Port to listen at.
+        :return: None
+        """
+        app = cls.make_tornado_app()
+        app.listen(port)
+        tornado.ioloop.IOLoop.current().start()
+
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     """
@@ -165,10 +172,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #     raise RuntimeError('WS is in use.')
         self.app = self.mainApp(self)
         self.app.wsopen()  # TODO: This is redundant. Whatever is in there can
-                           #       be done in the constructor.
-
-    # def instapp(self):
-    #     return 0
+                           #    be done in the constructor.
 
     def on_message(self, message):
         """
@@ -194,17 +198,3 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print(f'{self.__class__.__name__}.on_close()')
         WebSocketHandler.connection = None
 
-
-# class WebPyApplication(tornado.web.Application):
-#
-#     def __init__(self, wshandler):
-#         handlers = [
-#             # (r"/", self.mainhandler),
-#             (r"/", MainHandler),
-#             # (r"/websocket", self.wshandler),
-#             (r"/websocket", wshandler),
-#             (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
-#             (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
-#         ]
-#
-#         super(WebPyApplication, self).__init__(handlers)

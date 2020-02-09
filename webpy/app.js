@@ -157,6 +157,7 @@ class Widget2 extends Backbone.View {
             function(){ console.log("Changed") });
 
         // Handlers per message type.
+        // They are passed the entire original message when called.
         this.msgHandlers = {
             children: [this.onChildren.bind(this)],
             append: [this.onAppendChild.bind(this)],
@@ -186,6 +187,7 @@ class Widget2 extends Backbone.View {
     }
 
     get template() {
+        // TODO: Cache compilation
         return Handlebars.compile(
             this.template_src
         );
@@ -296,6 +298,10 @@ class Widget2 extends Backbone.View {
                 throw TypeError('No handler for event "' + message.event +
                     '" in this widget: ' + this.id);
             }
+            else if (e.constructor === TypeError && _.isFunction(this.msgHandlers[message.event])) {
+                // this.msgHandlers was not a list, but a single method.
+                this.msgHandlers[message.event](message);
+            }
             else {
                 throw e;
             }
@@ -343,19 +349,27 @@ class Widget2 extends Backbone.View {
             }
         );
 
-        // Event handlers
+        // DOM Element Event handlers
         // Note: It may be convenient to use the view's delegateEvents instead of
         // directly using jQuery's mechanism.
-
         for (let [handlerName, handlerBody] of Object.entries(widgetJSON.handlers)) {
             newWidget.$el.on(handlerName, Function('event', handlerBody).bind(newWidget));
         }
 
+        // Custom render() method.
         if (widgetJSON.render !== null) {
             // this.listenTo(this.model, 'change', this.render);
             newWidget.stopListening(newWidget.model, 'change', newWidget.render);
             newWidget.render = Function(widgetJSON.render);
             newWidget.listenTo(newWidget.model, 'change', newWidget.render);
+        }
+
+        // Custom methods.
+        // They are attached as message handlers.
+        // They are passed a single parameter called 'msg' with the entire message
+        // from the server.
+        for (let [methodName, methodBody] of Object.entries(widgetJSON.customMethods)) {
+            newWidget.msgHandlers[methodName] = Function('msg', methodBody).bind(this);
         }
 
         return newWidget

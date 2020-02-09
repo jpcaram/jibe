@@ -8,5 +8,5 @@ setup(
     author_email='jpcaram@siliconcr.com',
     url='http://caram.cl',
     packages=['webpy'],
-    requires=['tornado', 'jinja2']
+    requires=['tornado', 'jinja2', 'matplotlib', 'numpy']
 )

@@ -5,11 +5,15 @@
     <script src="/lib/handlebars.js"></script>
     <script src="/lib/underscore.js"></script>
     <script src="/lib/backbone.js"></script>
-    <script src="app.js"></script>
+    <script src="/app.js"></script>
     <link rel="stylesheet" type="text/css" href="app.css">
     <script>
         APP2.setup();
+        {% if appname == "" %}
         APP2.connect("ws://localhost:8881/websocket");
+        {% else %}
+        APP2.connect("ws://localhost:8881/{{appname}}/websocket");
+        {% endif %}
         $(function () {
             // let w = new Widget2("topwidget", {}, APP2);
             // w.setElement($("body"));

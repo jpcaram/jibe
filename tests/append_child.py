@@ -9,9 +9,7 @@ class ExampleApp(MainApp):
         super().__init__(connection)
 
         self.count = 0
-
         self.button = Button()
-
         self.children = [
             self.button,
         ]

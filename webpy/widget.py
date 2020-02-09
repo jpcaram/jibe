@@ -183,7 +183,9 @@ class Widget:
 
     def __init__(self, *args, style=None, identifier=None,
                  renderOnChange=True, notifyServerOnChange=True):
+
         super().__setattr__('properties', LoudDict())
+
         self.properties.set_change_callback(self.on_change)
 
         self.renderOnChange = renderOnChange
@@ -238,6 +240,8 @@ class Widget:
 
         self._jsrender = None
         """Defines the body of the Javascript rendering function."""
+
+        self._jscustomMethods = {}
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name')).
@@ -565,11 +569,12 @@ class Widget:
             'style': self.style,
             'tagName': self.tagname,
             'className': self.classname,
-            'template': self.template(),
+            'template': self.template(),  # TODO: Why call?
             'handlers': self._jshandlers,
             'render': self._jsrender,
             'renderOnChange': self.renderOnChange,
-            'notifyServerOnChange': self.notifyServerOnChange
+            'notifyServerOnChange': self.notifyServerOnChange,
+            'customMethods': self._jscustomMethods
         }
 
     def serialize(self):
@@ -629,7 +634,7 @@ class Button(Widget):
         self.template_txt = "{{ label }}"
 
         self.properties = {
-            'label': label  # Todo: is this a reference?
+            'label': label
         }
 
         self._jshandlers['click'] = """
@@ -657,13 +662,13 @@ class Input(Widget):
     Supported events: change.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, value='', **kwargs):
 
         super().__init__(**kwargs)
 
         # Do not overwrite self.properties. It is a LoudDict configured
         # to trigger events on change. Only create and assign to items.
-        self.properties['value'] = ''
+        self.properties['value'] = value
 
         self.tagname = "input"
 
@@ -692,14 +697,14 @@ class Input(Widget):
         """
 
     @event_handler("change")
-    def on_change(self, msg):
+    def on_change_msg(self, msg):
         """
         Event handler for the "change" event.
 
         :param msg:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_change({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({msg})')
 
         # Use super().__setattr__ otherwise the update gets set
         # to the client.
@@ -754,17 +759,16 @@ class Dropdown(Widget):
         """
 
     @event_handler("change")
-    def on_change(self, msg):
+    def on_change_msg(self, msg):
         """
         Event handler for the "change" event.
 
         :param msg:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_change({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({msg})')
 
-        # Use super().__setattr__ otherwise the update gets set
-        # to the client.
+        self.value = msg['properties']['value']
 
         # super().__setattr__('value', msg['properties']['value'])
         for subscriber in self.subscribers['change']:
@@ -801,54 +805,38 @@ class Label(Widget):
 
 class CheckBox(Widget):
 
-    def __init__(self, **kwargs):
+    def __init__(self, checked=False, **kwargs):
         super().__init__(**kwargs)
-        self._checked = False
+        self.properties['checked'] = checked
 
-    def html(self):
-        return Template("""
-        <widget id="_{{identifier}}">
-        <input class="widget" id="{{identifier}}" type="checkbox" style="{{style}}">
-        <script>
-        let w = new Widget("{{identifier}}", APP.wsopen);
-        w.node.on("change", function( event ) {
-            console.log({id:"{{identifier}}", event: 'change', value: event.currentTarget.checked});
-            APP.send({id:"{{identifier}}", event: 'change', value: event.currentTarget.checked});
-        });
-        w.onMsgType("value", function(message) {
-            console.log('message.event == "value"');
-            this.node.checked = message.value;
-        });
-        </script>
-        </widget>
-        """).render(
-            identifier=self.identifier,
-            style=self.style_string()
-        )
+        self.tagname = 'input'
+        self.attributes['type'] = 'checkbox'
 
-    @property
-    def checked(self):
-        return self._checked
+        # React to DOM events.
+        self._jshandlers['change'] = """
+            console.log(`[${this.id}] custom change handler.`);
+            this.model.set('checked', this.el.checked);
+        """
 
-    @checked.setter
-    def checked(self, val):
-        print(f'{self.__class__.__name__}.checked({val})')
-        self.message({'event': 'value', 'value': val})
-        self._checked = val
+        # Do not re-render, just change the 'checked' value.
+        self._jsrender = """
+            console.log(`[${this.id}] custom render():`);
+            this.el.checked = this.model.get('checked');
+        """
 
     @event_handler("change")
-    def on_change(self, msg):
+    def on_change_msg(self, msg):
         """
         Event handler for the "change" event.
-
-        TODO: This may need to be part of the Widget class and common to all.
 
         :param msg:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_change({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({msg})')
 
-        self._checked = msg['value']
+        # This will trigger a message back to the browser but wont
+        # trigger another change event there.
+        self.checked = msg['properties']['checked']
 
         print(f'{len(self.subscribers["change"])} subscribers.')
         for subscriber in self.subscribers['change']:
@@ -909,7 +897,6 @@ class ProgressBar(Div):
 
     @property
     def value(self):
-        print(f'{self.__class__.__name__} value property read)')
         return self.properties['value']
 
     def on_change(self, propname):
@@ -924,6 +911,39 @@ class ProgressBar(Div):
         self.inner.css({
             'min-width': f'{self.value}%',
             'max-width': f'{self.value}%'
+        })
+
+
+class Redirect(Widget):
+
+    def __init__(self):
+
+        super().__init__(style={
+            'visibility': 'hidden',
+            'display': 'none'
+        })
+
+        self._jsrender = """
+            // Do nothing.
+        """
+
+        # A single parameter 'msg' is passed in.
+        self._jscustomMethods['redirect'] = """
+            window.location.replace(msg.location)
+        """
+
+    def redirect(self, url):
+        """
+        Messages the widget in the browser to redirect to
+        the give url using Javascript.
+
+        :param url: Destination URL.
+        :return: None
+        """
+
+        self.message({
+            'event': 'redirect',
+            'location': url
         })
 
 
