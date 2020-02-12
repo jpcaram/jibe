@@ -284,6 +284,11 @@ class Widget:
         Note: This gets called when the normal lookup fails, so we don't
         need to handle the normal lookup here.
         """
+
+        if item == 'properties':
+            # This can happen if a descendent class did not call super()
+            # before trying to access the 'properties' member.
+            raise AttributeError('This Widget has not been properly initialized.')
         try:
             return self.properties[item]
         except KeyError:
@@ -609,6 +614,7 @@ class HBox(Widget):
 
 
 class VBox(Widget):
+
     def __init__(self, *args, **kwargs):
         style = {
             'display': 'flex',
@@ -706,10 +712,11 @@ class Input(Widget):
         """
         print(f'{self.__class__.__name__}.on_change_msg({msg})')
 
-        # Use super().__setattr__ otherwise the update gets set
-        # to the client.
-
+        # Use super().__setattr__ if you don't want to send an
+        # update to the browser.
         # super().__setattr__('value', msg['properties']['value'])
+        self.value = msg['properties']['value']
+
         for subscriber in self.subscribers['change']:
             subscriber(self)
 
@@ -779,7 +786,7 @@ class Label(Widget):
     """
     Simple text label.
 
-    The 'value' member is the text shown in the label. This
+    The 'value' property is the text shown in the label. This
     member is part of the object's model, therefore it is
     immediately synchronized and updated in the browser
     when it changes.
@@ -800,7 +807,7 @@ class Label(Widget):
         # This is the default. Not needed:
         # self.tagname = "div"
 
-        self.template_txt = "{{ value }}"
+        self.template_txt = "<p>{{ value }}</p>"
 
 
 class CheckBox(Widget):
@@ -863,8 +870,20 @@ class Image(Widget):
 
 
 class ProgressBar(Div):
+    """
+    Simple progress bar. Its 'value' property represents its progress
+    from 0 to 100.
+    """
 
-    def __init__(self, *args, style=None):
+    def __init__(self, value=0, *args):
+        """
+        Simple progress bar.
+
+        TODO: Pass args to super constructor.
+
+        :param value: Progress value, from 0 to 100.
+        :param args:
+        """
         super().__init__(style={
             'min-width': '300px',
             'max-width': '300px',
@@ -889,7 +908,7 @@ class ProgressBar(Div):
 
         self.children = [self.inner]
 
-        self.properties['value'] = 0
+        self.properties['value'] = value
 
         # We don't want to re-render when 'value' changes.
         # We directly update CSS of self.inner instead.
@@ -915,6 +934,14 @@ class ProgressBar(Div):
 
 
 class Redirect(Widget):
+    """
+    A widget that allows triggering a page redirection.
+
+    This widget is invisible and can be placed anywhere as a child
+    of the main application or of another widget. It simply runs the
+    required Javascript on the browser to redirect to another page
+    when its redirect() method is called.
+    """
 
     def __init__(self):
 
@@ -935,7 +962,7 @@ class Redirect(Widget):
     def redirect(self, url):
         """
         Messages the widget in the browser to redirect to
-        the give url using Javascript.
+        the given url using Javascript.
 
         :param url: Destination URL.
         :return: None

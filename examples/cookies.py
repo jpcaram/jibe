@@ -30,15 +30,15 @@ class ExampleApp(MainApp):
 
         self.button.register('click', self.on_button_click)
 
-    def wsopen(self):
-        """
-        TODO: This may be redundant. So far, the constructor is called when
-            the websocket opens, so everything that is done here can be done
-            in the constructor.
-        """
-        print(f'{self.__class__.__name__}.wsopen() -- Set the value of the input box.')
-        super().wsopen()
-        self.inbox.value = self.connection.get_cookie('sessionid')
+    # def wsopen(self):
+    #     """
+    #     TODO: This may be redundant. So far, the constructor is called when
+    #         the websocket opens, so everything that is done here can be done
+    #         in the constructor.
+    #     """
+    #     print(f'{self.__class__.__name__}.wsopen() -- Set the value of the input box.')
+    #     super().wsopen()
+    #     self.inbox.value = self.connection.get_cookie('sessionid')
 
     def on_inbox_change(self):
         print(f'{self.__class__.__name__}.on_inbox_change()')
