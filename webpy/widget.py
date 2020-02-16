@@ -138,18 +138,23 @@ class LoudDict(dict):
 
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
-        self.callback = lambda x: None
+        self.callback = lambda x, y, z: None
 
     def __setitem__(self, key, value):
         """
-        Overridden __setitem__ method. Will emit 'changed(QString)'
-        if the item was changed, with key as parameter.
+        Overridden __setitem__ method. Will call self.callback
+        with the key as paramater if the new value is different
+        from the previous value.
         """
-        if key in self and self.__getitem__(key) == value:
-            return
+
+        last = None
+        if key in self:
+            last = self.__getitem__(key)
+            if last == value:
+                return
 
         dict.__setitem__(self, key, value)
-        self.callback(key)
+        self.callback(key, value, last)
 
     def update(self, *args, **kwargs):
         if len(args) > 1:
@@ -186,6 +191,7 @@ class Widget:
 
         super().__setattr__('properties', LoudDict())
 
+        # There is nothing in on_change yet.
         self.properties.set_change_callback(self.on_change)
 
         self.renderOnChange = renderOnChange
@@ -272,10 +278,18 @@ class Widget:
         # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
 
     def __setattr__(self, key, value):
+        """
+        Allows keys in the 'properties' member to behave as members. When assigned
+        to and if the item changes, this.on_change is called, which sends out
+        a message to notify of the change.
+
+        :param key: Name of the attribute (or property).
+        :param value: Value to be assigned.
+        :return: None
+        """
 
         if key in self.properties:
             self.properties[key] = value
-            self.message({'event': 'properties', 'properties': {key: value}})
         else:
             super().__setattr__(key, value)
 
@@ -588,14 +602,18 @@ class Widget:
         """
         return json.dumps(self.toJSON())
 
-    def on_change(self, propname):
+    def on_change(self, propname, newval, oldval):
         """
         Callback for change in self.properties.
 
         :param propname: Name of the property that has changed.
+        :param newval: New value of the property.
+        :param oldval: Previous value of the property.
         :returns: None
         """
         print(f"{self.__class__.__name__}.on_change('{propname}')")
+        self.message({'event': 'properties',
+                      'properties': {propname: newval}})
 
 
 class Div(Widget):
@@ -918,7 +936,23 @@ class ProgressBar(Div):
     def value(self):
         return self.properties['value']
 
-    def on_change(self, propname):
+    def on_change(self, propname, newval, oldval):
+        """
+        Overrides the normal on_change, which sends a message to
+        the browser notifying of the change to a property, by
+        in addition, sending an update to CSS properties of
+        one of its children.
+
+        Notice that in this example the only property is 'value',
+        so we don't even check for it.
+
+        :param propname: Property name.
+        :param newval: New value.
+        :param oldval: Old value.
+        :return: None
+        """
+        super().on_change(propname, newval, oldval)
+
         print(f"{self.__class__.__name__}.on_change('{propname}')")
 
         # Don't go past 100.
@@ -950,12 +984,18 @@ class Redirect(Widget):
             'display': 'none'
         })
 
+        # Override the JS rendering method such that it never
+        # attemps to render this widget in the DOM.
         self._jsrender = """
             // Do nothing.
         """
 
-        # A single parameter 'msg' is passed in.
+        # Custom JS methods are called from Python by sending a
+        # message with 'event': 'name-of-method' and the method
+        # receives a single parameter 'msg', which contains the
+        # entire message.
         self._jscustomMethods['redirect'] = """
+            console.log(`[${this.id}] redirect('${msg.location}')`);
             window.location.replace(msg.location)
         """
 
@@ -972,5 +1012,4 @@ class Redirect(Widget):
             'event': 'redirect',
             'location': url
         })
-
 

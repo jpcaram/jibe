@@ -5,6 +5,13 @@ import tornado.ioloop
 from pathlib import Path
 
 
+class Session:
+
+    def __init__(self):
+
+        self.authenticated = False
+
+
 class AuthenticationApp(MainApp):
 
     def __init__(self, connection):
@@ -38,14 +45,23 @@ class AuthenticationApp(MainApp):
 
         self.btn.register("click", self.on_click)
 
+        # ---- Authentication Verification ----
+        # If authenticated, redirect immediately to the
+        # main (restricted app).
+        sid = connection.get_cookie('sessionid')
+        session = connection.application.get_session(sid)
+        print(f'[{__class__.__name__}] Session: {session}')
+        if session.authenticated:
+            self.redir.redirect('/b')
+        # -------------------------------------
+
     def on_click(self, source):
         self.status.value = ''
 
         if self.pwinput.value == "password":
             sid = self.connection.get_cookie('sessionid')
-            self.connection.application.sessions[sid] = {
-                'authenticated': True
-            }
+            session = self.connection.application.get_session(sid)
+            session.authenticated = True
             self.redir.redirect('/b')
             self.status.value = 'Success'  # This works???
         else:
@@ -60,7 +76,7 @@ class ExampleApp(MainApp):
     websockets and that is why it is done that way.
 
     At the time an instance of the MainApp exists, the 'sessionid'
-    cookie must exist as well.
+    cookie does exist as well.
     """
 
     def __init__(self, connection):
@@ -69,6 +85,7 @@ class ExampleApp(MainApp):
         # MainApp.__init__: self.connection = connection
         super().__init__(connection)
 
+        # #### Authentication Verification #####
         sid = connection.get_cookie('sessionid')
         session = connection.application.get_session(sid)
         print(f'[{__class__.__name__}] Session: {session}')
@@ -76,6 +93,7 @@ class ExampleApp(MainApp):
             self.children = [Label('Not authorized')]  # Will never happen
             connection.close()
             return
+        # ### Done with authentication verification ####
 
         self.button = Button()
         self.inbox = Input()
@@ -165,7 +183,9 @@ class MultiApp(tornado.web.Application):
         try:
             return self.sessions[sid]
         except KeyError:
-            return None
+            session = Session()
+            self.sessions[sid] = session
+            return session
 
 
 if __name__ == "__main__":

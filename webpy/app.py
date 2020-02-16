@@ -46,27 +46,27 @@ class MainApp(VBox):
 
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
-    def wsopen(self):
-        """
-        Called by self.wshandler.open(). Here we deliver all queued meesages
-        in self.outbox. self.deliver will queue the messages if
-        self.wshandler.connection is None.
-
-        TODO: This may be redundant. I think the object is instantiated only once
-              the connection is established. See WebsocketHandler.open()
-
-        :return: None
-        """
-        print(f'{self.__class__.__name__}.wsopen() -- Nothing to do here.')
-        # for msg in self.outbox:
-        #     self.deliver(msg)
-        # self.outbox = []
+    # def wsopen(self):
+    #     """
+    #     Called by self.wshandler.open(). Here we deliver all queued meesages
+    #     in self.outbox. self.deliver will queue the messages if
+    #     self.wshandler.connection is None.
+    #
+    #     TODO: This may be redundant. I think the object is instantiated only once
+    #           the connection is established. See WebsocketHandler.open()
+    #
+    #     :return: None
+    #     """
+    #     print(f'{self.__class__.__name__}.wsopen() -- Nothing to do here.')
+    #     # for msg in self.outbox:
+    #     #     self.deliver(msg)
+    #     # self.outbox = []
 
     def on_message(self, msg: Dict):
         """
         Called by the websocket handler's on_message. Overrides
         the parent widget's on_message. Delivers the message to
-        the parent class (super) or to descendents (children).
+        the parent class (super) or to descendent (child).
 
         :param msg: The message from the client.
         :return: None
@@ -171,8 +171,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #     print(f'Existing connection: {self.connection}')
         #     raise RuntimeError('WS is in use.')
         self.app = self.mainApp(self)
-        self.app.wsopen()  # TODO: This is redundant. Whatever is in there can
-                           #    be done in the constructor.
+        # self.app.wsopen()  # TODO: This is redundant. Whatever is in there can
+        #                    #    be done in the constructor.
 
     def on_message(self, message):
         """

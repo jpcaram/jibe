@@ -10,6 +10,14 @@ class ExampleApp(MainApp):
 
     def __init__(self, connection):
         super().__init__(connection)
+
+        # Nothing is sent to the browser during the construction.
+        # However, as soon as we start adding children, messages
+        # announcing the children are being queued for delivery.
+        # Only when this widget is ready on the browser side,
+        # these messages will be sent.
+        # Note: This "serial" delivery is slow and probably
+        # unnecessary.
         self.children = [
             Button(),
             Input(value='The value')

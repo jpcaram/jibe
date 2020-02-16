@@ -214,6 +214,18 @@ class Widget2 extends Backbone.View {
         return {}
     }
 
+    /**
+     * Send out a message (from this widget to its
+     * server-side counterpart).
+     *
+     * A 'path' and 'id' are automatically attached
+     * to the message. Then this.deliver(msg) is called.
+     *
+     * See Widget.deliver() for details on message
+     * routing.
+     *
+     * @param msg
+     */
     message(msg) {
         msg.id = this.id;
         msg.path = [];
@@ -223,10 +235,18 @@ class Widget2 extends Backbone.View {
     /**
      * Get the message to the server.
      *
+     * The message is delivered to this widget's parent.
+     * The main app is the top level widget which actually
+     * sends the message over then network.
+     *
+     * If necessary, parent can scrutinize the children's
+     * communications, with the App making the final
+     * decision before transmission.
+     *
      * @param msg
      */
     deliver(msg) {
-        msg.path.unshift(this.id);  // At the beginning.
+        msg.path.unshift(this.id);  // Insert id at the beginning.
 
         if (this.parent === undefined || this.parent === null) {
             throw `This widget ${this.id} does not have a parent. Cannot deliver.`;
@@ -369,7 +389,7 @@ class Widget2 extends Backbone.View {
         // They are passed a single parameter called 'msg' with the entire message
         // from the server.
         for (let [methodName, methodBody] of Object.entries(widgetJSON.customMethods)) {
-            newWidget.msgHandlers[methodName] = Function('msg', methodBody).bind(this);
+            newWidget.msgHandlers[methodName] = Function('msg', methodBody).bind(newWidget);
         }
 
         return newWidget
