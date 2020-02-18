@@ -184,6 +184,10 @@ class NoSuchEvent(Exception):
     pass
 
 
+class NotWidgetError(Exception):
+    pass
+
+
 class Widget:
 
     def __init__(self, *args, style=None, identifier=None,
@@ -218,7 +222,7 @@ class Widget:
         self._children._on_remove_callbacks.append(self.on_children_remove)
 
         self.local_event_handlers = {}
-        """To define event handlers within the object."""
+        """To define DOM event handlers within the object."""
 
         self.subscribers = {}
         """For others to benotified of events."""
@@ -237,7 +241,9 @@ class Widget:
         self._jshandlers = {}
         """Defines the bodies of the callback functions in Javascript for
         events occurring on the DOM element. The keys are the event names.
-        The 'this' object is the widget, not the DOM element."""
+        The 'this' object is the widget, not the DOM element.
+        When deserialized in JS, each method is directly attached to 
+        the DOM event."""
 
         self.outbox = []
         """Message queue waiting for browser side to be ready."""
@@ -251,6 +257,7 @@ class Widget:
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name')).
+        # See self._jshandlers.
         for method_name in dir(self):
 
             # Skip properties
@@ -326,6 +333,15 @@ class Widget:
         :return: None
         """
         print(f'{self.__class__.__name__}.children({value})')
+
+        try:
+            iter(value)
+        except TypeError:
+            raise TypeError('The children of a widget must be a list of widgets.')
+
+        for child in value:
+            if not isinstance(child, Widget):
+                raise NotWidgetError(f'{child} is not a widget.')
 
         self._children = NotifyList2(value)
         # What to do when we make changes to self._children.
@@ -417,8 +433,11 @@ class Widget:
         """
         print(f'{self.__class__.__name__}.on_children_append()')
 
-        # Adopt the child
         child = args[0]
+        if not isinstance(child, Widget):
+            raise NotWidgetError(f'{child} is not a Widget.')
+
+        # Adopt the child
         print(f'{repr(self)} adopting child: {repr(child)}')
         child.parent = self
 
@@ -625,10 +644,14 @@ class Div(Widget):
 class HBox(Widget):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, style={
+        style = {
             'display': 'flex',
             'flex-direction': 'row'
-        }, **kwargs)
+        }
+        if 'style' in kwargs:
+            style.update(kwargs['style'])
+            del kwargs['style']
+        super().__init__(*args, style=style, **kwargs)
 
 
 class VBox(Widget):
@@ -665,6 +688,11 @@ class Button(Widget):
             this.message({event: 'click'});
         """
 
+    # TODO: This seems to be an unnecessary intermediate step
+    #   for calling the subscribers. Is the decorator just
+    #   obscuring what is going on? Besides, it seems that all
+    #   "event handlers" need to do the exact same thing,
+    #   i.e. iterate over and call subscribers.
     @event_handler("click")
     def on_click(self, msg):
         """
