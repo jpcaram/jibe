@@ -46,22 +46,6 @@ class MainApp(VBox):
 
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
-    # def wsopen(self):
-    #     """
-    #     Called by self.wshandler.open(). Here we deliver all queued meesages
-    #     in self.outbox. self.deliver will queue the messages if
-    #     self.wshandler.connection is None.
-    #
-    #     TODO: This may be redundant. I think the object is instantiated only once
-    #           the connection is established. See WebsocketHandler.open()
-    #
-    #     :return: None
-    #     """
-    #     print(f'{self.__class__.__name__}.wsopen() -- Nothing to do here.')
-    #     # for msg in self.outbox:
-    #     #     self.deliver(msg)
-    #     # self.outbox = []
-
     def on_message(self, msg: Dict):
         """
         Called by the websocket handler's on_message. Overrides
