@@ -7,7 +7,14 @@
     <script src="/lib/backbone.js"></script>
     <script src="/app.js"></script>
     <link rel="stylesheet" type="text/css" href="app.css">
+    {% for src in scripts %}
+        <script src="{{ src }}"></script>
+    {% endfor %}
+    {% for src in cssfiles %}
+        <link rel="stylesheet" type="text/css" href="app.css">
+    {% endfor %}
     <script>
+        {{ presetup }}
         APP2.setup();
         {% if appname == "" %}
         APP2.connect("ws://localhost:8881/websocket");
@@ -19,6 +26,9 @@
             // w.setElement($("body"));
         });
     </script>
+    <style>
+        {{ css }}
+    </style>
 </head>
 <body id="topwidget">
 

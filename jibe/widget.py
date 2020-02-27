@@ -195,11 +195,16 @@ class Widget:
 
         super().__setattr__('properties', LoudDict())
 
-        # There is nothing in on_change yet.
+        # The callback sends a message to the broser notifying
+        # about the change.
         self.properties.set_change_callback(self.on_change)
 
+        # Whether the JS widget should render when there is
+        # a change in its model (properties).
         self.renderOnChange = renderOnChange
 
+        # Whether the JS widget should send the server a
+        # message to notify the change in its model (properties).
         self.notifyServerOnChange = notifyServerOnChange
 
         self.identifier = identifier or self.__class__.__name__ + '-' + ''.join(choice(letter) for _ in range(10))
@@ -399,12 +404,13 @@ class Widget:
 
     def on_children_change(self):
         """
-        Called when the children attribute is assigned. Children are "adopted",
-        i.e. their parent property is set to this widget.
+        Called when the children attribute is assigned.
 
-        This also triggers a call to self.update_descendents(). Actually,
-        each child calls it when it detects that its 'parent' member is
-        being set.
+        * Children are "adopted", i.e. their parent property is set to this widget.
+        * Triggers a call to self.update_descendents(). Actually,
+          each child calls it when it detects that its 'parent' member is
+          being set.
+        * Sends the children to the browser.
 
         :return: None
         """
@@ -420,7 +426,8 @@ class Widget:
         # the messages will be queued and then this will happen twice when
         # it becomes ready.
         if self.browser_side_ready:
-            self.on_children()
+            # self.on_children()
+            self.send_children()
 
     def on_children_append(self, *args, **kwargs):
         """
@@ -447,6 +454,8 @@ class Widget:
         """
         Called when this.children.remove() is called. Notifies the
         browser of the removal.
+
+        TODO: Is this working?
 
         :param args:
         :param kwargs:
@@ -542,6 +551,8 @@ class Widget:
         Javascript counterpart request for children. Widgets that have children
         will request for their children once they are instantiated in the browser.
 
+        TODO: Check if this is still being used.
+
         :param msg: Message from the browser
         :return: None
         """
@@ -623,7 +634,8 @@ class Widget:
 
     def on_change(self, propname, newval, oldval):
         """
-        Callback for change in self.properties.
+        Callback for change in self.properties. Sends a message
+        to the browser notifying of the change.
 
         :param propname: Name of the property that has changed.
         :param newval: New value of the property.

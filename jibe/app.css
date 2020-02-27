@@ -1,10 +1,15 @@
 .widget {
     font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
     font-size: 13px;
+    margin: 0px;
 }
 
 .widget > p {
     vertical-align: middle;
+    margin-left: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    /*margin: 0 5px 10px 10px;*/
 }
 
 input.widget {
@@ -56,3 +61,6 @@ button.widget:active {
 button.widget:focus {
     outline: 1px solid #709aa4;
 }
+
+
+

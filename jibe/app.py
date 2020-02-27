@@ -25,7 +25,32 @@ class MainHandler(tornado.web.RequestHandler):
             sessionid = ''.join(choice(letter) for _ in range(10))
             self.set_cookie("sessionid", sessionid)
 
-        self.write(htmlt.render(body='', appname=''))
+        self.write(htmlt.render(
+            body=self.body(),
+            appname=self.appname(),
+            scripts=self.scripts(),
+            cssfiles=self.cssfiles(),
+            presetup=self.presetup(),
+            css=self.css()
+        ))
+
+    def body(self):
+        return ''
+
+    def appname(self):
+        return ''
+
+    def scripts(self):
+        return []
+
+    def cssfiles(self):
+        return []
+
+    def presetup(self):
+        return ''
+
+    def css(self):
+        return ''
 
 
 class MainApp(VBox):
