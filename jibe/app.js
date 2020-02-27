@@ -102,7 +102,7 @@ class Widget2 extends Backbone.View {
      */
     constructor(id, properties={}, parent,
                 {
-                    attributes={},
+                    attributes={id: id},
                     style={},
                     tagName="div",
                     className="widget",
@@ -256,7 +256,14 @@ class Widget2 extends Backbone.View {
     }
 
     /**
-     * Got this message from the server. Get to the right child.
+     * This method is called when a message is received from the server
+     * and a parent widget has routed it to us since this widget is listed
+     * next in the msg.path. It is either adressed to this widget or
+     * to one of its children.
+     *
+     * If this widget is the recipient, it is handled with this.openMessage(),
+     * otherwise, it looks in the path for one of its children. In such
+     * case it is passed to the cihld's local_deliver().
      *
      * @param msg
      */
@@ -353,7 +360,9 @@ class Widget2 extends Backbone.View {
      * @returns {Widget2}
      */
     fromJSON(widgetJSON) {
-        
+
+        widgetJSON.attributes.id = widgetJSON.id;  // TODO: Hacky!
+
         let newWidget = new Widget2(
             widgetJSON.id,
             widgetJSON.properties,
