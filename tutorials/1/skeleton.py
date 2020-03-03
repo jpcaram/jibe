@@ -6,10 +6,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from jinja2 import Template, Environment, DictLoader
-from pathlib import Path
+from jibe import MainApp
 
-path = Path(__file__).parent.absolute()
-with open(f'{path}/page.html') as f:
-    html = f.read()
-htmlt = Template(html)
+class ToDoApp(MainApp):
+    pass
+
+if __name__ == "__main__":
+    ToDoApp.run(port=8881)

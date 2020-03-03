@@ -1,3 +1,11 @@
+# Jibe
+# A Full-Stack Pure-Python Web Framework.
+# Copyright (c) 2020 Juan Pablo Caram
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 from random import choice
 from jinja2 import Template
 from typing import Callable, List
@@ -5,42 +13,6 @@ import json
 
 
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-
-# def callback_method(func):
-#     """
-#     Used to wrap methods such that _callbacks in the class
-#     are called immediately after the method.
-#
-#     :param func: Method to be wrapped.
-#     :return: Wrapped method.
-#     """
-#
-#     def notify(self, *args, **kwargs):
-#         retval = func(self, *args, **kwargs)
-#         for callback in self._callbacks:
-#             callback(self, *args, **kwargs)
-#         return retval
-#
-#     return notify
-#
-#
-# class NotifyList(list):
-#     """
-#     Extends list to support a callback on change.
-#     """
-#     extend = callback_method(list.extend)
-#     append = callback_method(list.append)
-#     remove = callback_method(list.remove)
-#     pop = callback_method(list.pop)
-#     __delitem__ = callback_method(list.__delitem__)
-#     __setitem__ = callback_method(list.__setitem__)
-#     __iadd__ = callback_method(list.__iadd__)
-#     __imul__ = callback_method(list.__imul__)
-#
-#     def __init__(self, *args):
-#         list.__init__(self, *args)
-#         self._callbacks = []
 
 
 def callback_method_x(method: Callable, cbname: str) -> Callable:
@@ -112,10 +84,10 @@ def event_handler(*args):
     Example:
 
     Set @event_handler('click') on a method of a Widget. This will
-    define widget.subscribers['click']. In the marked mathod, call
+    define widget.subscribers['click']. In the marked method, call
     the subscribers. The method will be called when the event is triggered.
 
-    Other can subscribe via widget.register('click', callback).
+    Others can subscribe via widget.register('click', callback).
 
     :param args:
     :return:
@@ -175,6 +147,23 @@ class LoudDict(dict):
 
         self.callback = callback
 
+    def set(self, key, value, silent=False):
+        """
+        Alternative to direct assignement of an item than
+        can optionally not call the callback if silent
+        is set to True
+
+        :param key: Key.
+        :param value: Value.
+        :param silent: Whether to not call the callback.
+            Default is False (Call the callback).
+        :return:
+        """
+        if silent:
+            dict.__setitem__(self, key, value)
+        else:
+            self.__setitem__(key, value)
+
 
 class OrfanWidgetError(Exception):
     pass
@@ -193,6 +182,7 @@ class Widget:
     def __init__(self, *args, style=None, identifier=None,
                  renderOnChange=True, notifyServerOnChange=True):
 
+        # Avoid dynamic lookup, so use super().__setattr__()
         super().__setattr__('properties', LoudDict())
 
         # The callback sends a message to the broser notifying
@@ -235,11 +225,9 @@ class Widget:
         self.style = {} if style is None else style
         """Style attribute"""
 
-        self.classname = "widget"
+        self.classname = f"widget {self.__class__.__name__.lower()}"
 
         self.tagname = "div"
-
-        # self.properties = {}
 
         self.attributes = {}
 
@@ -763,7 +751,10 @@ class Input(Widget):
     @event_handler("change")
     def on_change_msg(self, msg):
         """
-        Event handler for the "change" event.
+        Event handler for the "change" event. This is for a change in
+        the widget's model in the browser, not the DOM's change event,
+        however, the DOM's change event is first used to change the model,
+        (see self._jshandlers['change'] above) which in turn causes this event.
 
         :param msg:
         :return:
@@ -777,6 +768,48 @@ class Input(Widget):
 
         for subscriber in self.subscribers['change']:
             subscriber(self)
+
+
+class SelectMultiple(Widget):
+
+    def __init__(self, value=None, options=None, **kwargs):
+
+        super().__init__(**kwargs)
+
+        self.tagname = 'select'
+        self.attributes['multiple'] = 'multiple'
+
+        if not (isinstance(value, (list, tuple)) or value is None):
+            raise ValueError('Value must be None or List or Tuple')
+
+        if not (isinstance(options, (list, tuple)) or options is None):
+            raise ValueError('Value must be None or List or Tuple')
+
+        # Different combinations for defaults when
+        # value and/or options is missing.
+        if value is None and options is not None:
+            value = []
+        elif value is not None and options is None:
+            options = value
+        else:
+            options = []
+            value = None
+
+        self.properties.update({
+            'value': value,
+            'options': options
+        })
+
+        # if_in is defined in APP2.setup() in app.js
+        self.template_txt = """
+            {{#each options}}
+                <option value="{{this}}"
+                {{#if_in ../value this}}
+                selected
+                {{/if_in}}
+                >{{this}}</option>
+            {{/each}}
+        """
 
 
 class Dropdown(Widget):

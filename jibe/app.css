@@ -1,3 +1,11 @@
+/* Jibe
+ * A Full-Stack Pure-Python Web Framework.
+ * Copyright (c) 2020 Juan Pablo Caram
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 .widget {
     font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
     font-size: 13px;
@@ -5,11 +13,19 @@
 }
 
 .widget > p {
-    vertical-align: middle;
     margin-left: 10px;
-    margin-top: 5px;
-    margin-bottom: 5px;
+    /* margin-top: 5px;
+    margin-bottom: 5px; */
     /*margin: 0 5px 10px 10px;*/
+}
+
+.widget.label {
+    display: table-cell;
+    vertical-aligh: middle;
+}
+
+.widget.checkbox {
+    margin: auto 4px auto 4px;
 }
 
 input.widget {

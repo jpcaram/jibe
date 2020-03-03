@@ -1,6 +1,6 @@
 import tornado.ioloop
-from webpy import MainApp
-from webpy import Button, Label
+from jibe import MainApp
+from jibe import Button, Label
 
 
 class ExampleApp(MainApp):

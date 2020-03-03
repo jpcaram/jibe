@@ -1,3 +1,12 @@
+/* Jibe
+ * A Full-Stack Pure-Python Web Framework.
+ * Copyright (c) 2020 Juan Pablo Caram
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+
 /**
  * For use with Widget2 widgets.
  */
@@ -58,6 +67,14 @@ let APP2 = {
     setup: function() {
         Handlebars.registerHelper('if_eq', function(a, b, opts) {
             if (a === b) {
+                return opts.fn(this);
+            } else {
+                return opts.inverse(this);
+            }
+        });
+
+        Handlebars.registerHelper('if_in', function(a, b, opts) {
+            if (a.includes(b)) {
                 return opts.fn(this);
             } else {
                 return opts.inverse(this);
@@ -140,6 +157,7 @@ class Widget2 extends Backbone.View {
             this.listenTo(this.model, 'change', this.render);
         }
 
+        // TODO: This condition is better checked in the else statement inside?
         if (notifyServerOnChange) {
             this.listenTo(this.model, 'change',
                 function (model, options) {
@@ -153,6 +171,7 @@ class Widget2 extends Backbone.View {
 
         }
 
+        // TODO: In general prefer this.listenTo.
         this.model.on("change",
             function(){ console.log("Changed") });
 
@@ -381,6 +400,7 @@ class Widget2 extends Backbone.View {
         // DOM Element Event handlers
         // Note: It may be convenient to use the view's delegateEvents instead of
         // directly using jQuery's mechanism.
+        // Handlers receiver the 'event' parameter containing an event object.
         for (let [handlerName, handlerBody] of Object.entries(widgetJSON.handlers)) {
             newWidget.$el.on(handlerName, Function('event', handlerBody).bind(newWidget));
         }

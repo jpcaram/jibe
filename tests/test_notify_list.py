@@ -1,5 +1,5 @@
 import unittest
-from webpy import NotifyList2
+from jibe import NotifyList2
 
 
 class MyTestCase(unittest.TestCase):

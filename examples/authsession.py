@@ -1,4 +1,12 @@
-from webpy import MainApp, Button, Input, CheckBox, WebSocketHandler, \
+# Jibe
+# A Full-Stack Pure-Python Web Framework.
+# Copyright (c) 2020 Juan Pablo Caram
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+from jibe import MainApp, Button, Input, CheckBox, WebSocketHandler, \
     Redirect, Label, VBox, HBox
 import tornado.web
 import tornado.ioloop
@@ -140,7 +148,7 @@ class WSHB(WebSocketHandler):
     mainApp = ExampleApp
 
 
-from webpy import htmlt
+from jibe import htmlt
 from random import choice
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
@@ -164,6 +172,9 @@ class MainHandler_(tornado.web.RequestHandler):
         }))
 
 
+folder = 'jibe'
+
+
 class MultiApp(tornado.web.Application):
 
     def __init__(self):
@@ -174,8 +185,8 @@ class MultiApp(tornado.web.Application):
             (r"/(a|b)", MainHandler_),
             (r"/a/websocket", WSHA),
             (r"/b/websocket", WSHB),
-            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../webpy/"}),
-            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../webpy/"})
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../{folder}/"}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../{folder}/"})
         ])
 
     def get_session(self, sid):
