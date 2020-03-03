@@ -1,6 +1,8 @@
 The Jibe Full-Stack Framework
 =============================
 
+`<http://jibe.caram.cl/>`_
+
 Jibe is a Full-Stack Library and Framework for developing
 highly interactive web applications in pure Python.
 
@@ -9,7 +11,9 @@ code, and on security and quick prototyping. Developers can create
 full-stack applications very quickly without
 sacrificing security and maintainability.
 
-Here is an example application::
+Here is an example application:
+
+.. code-block:: python
 
     from webpy import MainApp, Button, Input
 
