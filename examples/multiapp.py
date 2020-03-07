@@ -7,9 +7,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from jibe import MainApp, Button, Input, CheckBox, WebSocketHandler, \
-    Redirect
-import tornado.web
-from pathlib import Path
+    Redirect, MultiApp
 
 
 class ExampleAppA(MainApp):
@@ -63,48 +61,9 @@ class ExampleAppB(MainApp):
         self.redir.redirect('/a')
 
 
-class WSHA(WebSocketHandler):
-    mainApp = ExampleAppA
-
-
-class WSHB(WebSocketHandler):
-    mainApp = ExampleAppB
-
-
-from jibe import htmlt
-from random import choice
-letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-
-# noinspection PyAbstractClass
-class MainHandler_(tornado.web.RequestHandler):
-    """
-    Serves the top level html and core elements (javascript) of
-    the application.
-    """
-
-    def get(self, appname):
-
-        sessionid = self.get_cookie("sessionid")
-        if not sessionid:
-            sessionid = ''.join(choice(letter) for _ in range(10))
-            self.set_cookie("sessionid", sessionid)
-
-        self.write(htmlt.render({
-            'appname': appname
-        }))
-
-
-app = tornado.web.Application(
-    [
-        (r"/(a|b)", MainHandler_),
-        (r"/a/websocket", WSHA),
-        (r"/b/websocket", WSHB),
-        (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../webpy/"}),
-        (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../webpy/"})
-    ]
-)
-
 if __name__ == "__main__":
-    app.listen(8881)
-    tornado.ioloop.IOLoop.current().start()
+    mapp = MultiApp(
+        a=ExampleAppA,
+        b=ExampleAppB
+    )
+    mapp.run()

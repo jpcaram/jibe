@@ -20,6 +20,7 @@ from random import choice
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
 
+# noinspection PyAbstractClass
 class MainHandler(tornado.web.RequestHandler):
     """
     Serves the top level html and core elements (javascript) of
@@ -59,6 +60,26 @@ class MainHandler(tornado.web.RequestHandler):
 
     def css(self):
         return ''
+
+
+# noinspection PyAbstractClass
+class MultiAppHandler(tornado.web.RequestHandler):
+    """
+    Serves the top level html and core elements (javascript) of
+    a Jibe MultiApp.
+    """
+
+    def get(self, appname):
+        print(f'{__class__.__name__}.get("{appname}")')
+
+        sessionid = self.get_cookie("sessionid")
+        if not sessionid:
+            sessionid = ''.join(choice(letter) for _ in range(10))
+            self.set_cookie("sessionid", sessionid)
+
+        self.write(htmlt.render({
+            'appname': appname
+        }))
 
 
 class MainApp(VBox):
@@ -215,3 +236,51 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print(f'{self.__class__.__name__}.on_close()')
         WebSocketHandler.connection = None
 
+
+class MultiApp(tornado.web.Application):
+    """
+    Creates a WebSocketHandler-derived class for each Jibe App.
+    The initializes itself (a tornado.web.Application) with with a list of
+    Tornado Handlers.
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Creates a Jibe MultiApp.
+
+        :param kwargs: Jibe MainApps by name. The names are used as part of
+            the URL to reach each App.
+        """
+
+        # TODO: Get the path to the library files.
+        # TODO: Support specifying alternative files.
+        assets_path = f"{Path(__file__).parent.absolute()}/../jibe/"
+        print(f'Assets path: {assets_path}')
+
+        handlers = [
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": assets_path}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": assets_path})
+        ]
+
+        for name, cls in kwargs.items():
+            wsh = type(
+                'WSH' + name,
+                (WebSocketHandler, ),
+                {'mainApp': cls}
+            )
+            handlers.append((fr'/({name})', MultiAppHandler))
+            handlers.append((fr'/{name}/websocket', wsh))
+
+        from pprint import pprint
+        pprint(handlers)
+        super().__init__(handlers, debug=True)
+
+    def run(self, port=8881):
+        """
+        Start the Jibe MultiApp listening on the given port.
+
+        :param port: Port to listen at. Default is 8881.
+        :return: None
+        """
+        self.listen(port)
+        tornado.ioloop.IOLoop.current().start()

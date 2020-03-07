@@ -1,4 +1,5 @@
-from .app import MainApp, WebSocketHandler, MainHandler
+from .app import MainApp, WebSocketHandler, MainHandler, \
+    MultiAppHandler, MultiApp
 from .widget import Widget, Button, Input, HBox, VBox, \
     CheckBox, Label, NotifyList2, Image, ProgressBar, \
     Dropdown, Redirect, SelectMultiple, event_handler
@@ -22,5 +23,7 @@ __all__ = [
     "SelectMultiple",
     "Redirect",
     "htmlt",
-    "event_handler"
+    "event_handler",
+    "MultiAppHandler",
+    "MultiApp"
 ]
