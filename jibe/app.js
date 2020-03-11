@@ -57,7 +57,13 @@ let APP2 = {
      * @param message
      */
     send: function(message) {
-        this.ws.send(JSON.stringify(message));
+        this.ws.send(JSON.stringify(
+            message,
+            //function(key, value) {  // Remove possible circular references.
+            //    if (key == 'parent') { return value.id; }
+            //    else { return value; }
+            //}
+        ));
     },
 
     deliver: function(message) {
@@ -159,8 +165,12 @@ class Widget2 extends Backbone.View {
 
         // TODO: This condition is better checked in the else statement inside?
         if (notifyServerOnChange) {
+            // In general prefer this.listenTo over this.model.on
             this.listenTo(this.model, 'change',
+                // TODO: What object is this function bound to?
                 function (model, options) {
+                    // The message handler that receives a "event: properties"
+                    // message will mark options.source = "message".
                     if (options.source == "message") {
                         console.log(`[${this.id}] model data change from server.`);
                     } else {
@@ -171,10 +181,6 @@ class Widget2 extends Backbone.View {
 
         }
 
-        // TODO: In general prefer this.listenTo.
-        this.model.on("change",
-            function(){ console.log("Changed") });
-
         // Handlers per message type.
         // They are passed the entire original message when called.
         this.msgHandlers = {
@@ -183,7 +189,7 @@ class Widget2 extends Backbone.View {
             remove: [this.onRemoveChild.bind(this)],
             css: [this.onCSS.bind(this)],
             attr: [this.onAttr.bind(this)],
-            properties: [this.onProperties.bind(this)]
+            properties: [this.onProperties.bind(this)]  // Equivalent on server is "change"
         };
 
         this.message({event: "started"});
@@ -229,9 +235,10 @@ class Widget2 extends Backbone.View {
         return this;   // Useful convention
     }
 
-    get events() {
-        return {}
-    }
+    // TODO: Not used.
+    // get events() {
+    //     return {}
+    // }
 
     /**
      * Send out a message (from this widget to its
@@ -324,9 +331,10 @@ class Widget2 extends Backbone.View {
      * if provided, is fulfilled. Informs the server that this
      * widget is ready.
      */
-    onCommReady() {
-        this.message({event: "started"});
-    }
+    // TODO: Remove. Not used. This message is sent once at the end of the constructor.
+    // onCommReady() {
+    //     this.message({event: "started"});
+    // }
 
     /**
      * Handle a message for this object.
@@ -476,12 +484,13 @@ class Widget2 extends Backbone.View {
      * @param {string} msgtype
      * @param {function} handler
      */
-    onMsgType(msgtype, handler) {
-        if (!(msgtype in this.msgHandlers)) {
-            this.msgHandlers[msgtype] = [];
-        }
-
-        this.msgHandlers[msgtype].push(handler.bind(this));
-    }
+    // TODO: Not used. Remove?
+    // onMsgType(msgtype, handler) {
+    //     if (!(msgtype in this.msgHandlers)) {
+    //         this.msgHandlers[msgtype] = [];
+    //     }
+    //
+    //     this.msgHandlers[msgtype].push(handler.bind(this));
+    // }
 
 }

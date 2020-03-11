@@ -185,17 +185,17 @@ class Widget:
         # Avoid dynamic lookup, so use super().__setattr__()
         super().__setattr__('properties', LoudDict())
 
-        # The callback sends a message to the broser notifying
+        # The callback sends a message to the browser notifying
         # about the change.
         self.properties.set_change_callback(self.on_change)
 
-        # Whether the JS widget should render when there is
-        # a change in its model (properties).
         self.renderOnChange = renderOnChange
+        """Whether the JS widget should render when there is
+        a change in its model (properties)."""
 
-        # Whether the JS widget should send the server a
-        # message to notify the change in its model (properties).
         self.notifyServerOnChange = notifyServerOnChange
+        """Whether the JS widget should send the server a
+        message to notify the change in its model (properties)."""
 
         self.identifier = identifier or self.__class__.__name__ + '-' + ''.join(choice(letter) for _ in range(10))
         """Unique identifier to find the browser counterpart."""
@@ -208,6 +208,8 @@ class Widget:
         """
 
         self.descendent_index = {}
+        """Index for fast lookup of children.
+        TODO: Check if this contains only children or all descendents."""
 
         self._children = NotifyList2([])
         """For composite widgets."""
@@ -217,10 +219,24 @@ class Widget:
         self._children._on_remove_callbacks.append(self.on_children_remove)
 
         self.local_event_handlers = {}
-        """To define DOM event handlers within the object."""
+        """To define message-based event handlers within the object. This variable
+        gets populated (further down in this constructor) with methods 
+        market @event_handler. There can be only one handler (value) per event (key).
+        A handler gets called when a message with its 'event' key corresponds
+        with the key in this variable (Not necessarily a DOM event).
+        
+        To have and event be relayed to the server it has to be setup explicitly.
+        For example, using self._jshandlers[eventname] and within it sending
+        a message with {'event': 'eventname'}
+        
+        The 'change' event is pre-defined and is sent from the browser when
+        the model (data) of the widget changes.
+        """
 
         self.subscribers = {}
-        """For others to benotified of events."""
+        """For others to be notified of events. So far, these only get
+        called by the methods in self.local_event_handlers. This is populated
+        with self.register(callback)."""
 
         self.style = {} if style is None else style
         """Style attribute"""
@@ -228,25 +244,34 @@ class Widget:
         self.classname = f"widget {self.__class__.__name__.lower()}"
 
         self.tagname = "div"
+        """DOM element tag type."""
 
         self.attributes = {}
+        """DOM element attributes."""
 
         self._jshandlers = {}
         """Defines the bodies of the callback functions in Javascript for
         events occurring on the DOM element. The keys are the event names.
-        The 'this' object is the widget, not the DOM element.
-        When deserialized in JS, each method is directly attached to 
-        the DOM event."""
+        In the body of a callback, 'this' points to the the widget, not 
+        the DOM element that triggered the event. The handlers receive
+        a single parameter, an 'event' object, which may have different
+        properties depending on the kind of event. Could be 'keyCode'
+        for a 'keyPress' event, or 'clientX' and 'clientY' for
+        a 'click' event, etc. When deserialized in JS, each method is 
+        directly attached to the DOM event."""
 
         self.outbox = []
         """Message queue waiting for browser side to be ready."""
 
         self.template_txt = ""
+        """Widget body template in Handlebars syntax. Has access to the
+        widget's properties."""
 
         self._jsrender = None
         """Defines the body of the Javascript rendering function."""
 
         self._jscustomMethods = {}
+        """Defines Javascript widget methods that can be called from Python."""
 
         # Process methods marked as event handlers
         # (Decorated with @event_handler('event_name')).
@@ -272,7 +297,7 @@ class Widget:
                     self.local_event_handlers[event_name] = method
                     self.subscribers[event_name] = []
                     print(f'{self.__class__.__name__}: Registered event "{event_name}"')
-                except AttributeError:  # Does not have 'register'
+                except AttributeError:  # Does not have 'event_register'
                     pass
 
         # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
@@ -464,53 +489,55 @@ class Widget:
         # return self.html()
         return self.__repr__()
 
-    def on_message(self, msg):
+    def on_message(self, message):
         """
         Invoked when a message for this Widget is received from the browser.
 
-        :param msg:
+        :param message:
         :return:
         """
         print(f'{repr(self)}.on_message()')
-        print(f'   says: {msg}')
+        print(f'   says: {message}')
 
-        if 'event' in msg and msg['event'] in self.local_event_handlers:
-            print(f'   Forwarding to \"{msg["event"]}\" event handler.')
-            self.local_event_handlers[msg['event']](msg)
+        if 'event' in message and message['event'] in self.local_event_handlers:
+            print(f'   Forwarding to \"{message["event"]}\" event handler.')
+            self.local_event_handlers[message['event']](message)
 
-    def message(self, msg):
+    def message(self, message):
         """
         Send a message to this widget's browser side.
 
-        :param msg:
+        :param message:
         :return:
         """
 
-        msg['id'] = self.identifier
-        msg['path'] = []
-        self.deliver(msg)
+        message['id'] = self.identifier
+        message['path'] = []
+        self.deliver(message)
 
-    def deliver(self, msg):
+    def deliver(self, message):
         """
         Passes a message to the parent to be delivered to the Browser.
 
-        :param msg:
+        :param message:
         :return:
         """
         print(f'{self.__class__.__name__}.deliver()')
 
         # Queued messages will re-attempt delivery so the
         # identifier will already be attached to the path.
-        if len(msg['path']) == 0 or msg['path'][0] != self.identifier:
-            msg['path'].insert(0, self.identifier)
+        if len(message['path']) == 0 or message['path'][0] != self.identifier:
+            message['path'].insert(0, self.identifier)
 
         if not self.browser_side_ready:
-            self.outbox.append(msg)
-            print(f'   Appended to outbox: {msg}')
+            # TODO: self.outbox could possibly be "append-aware" and have the
+            #   if/else logic (see above and below) in a callback.
+            self.outbox.append(message)
+            print(f'   Appended to outbox: {message}')
         else:
             try:
-                self.parent.deliver(msg)
-                print(f'   Passed to parent: {msg}')
+                self.parent.deliver(message)
+                print(f'   Passed to parent: {message}')
             except AttributeError:
                 raise OrfanWidgetError(
                     f'This widget is not attached to an app: {repr(self)}'
@@ -518,9 +545,9 @@ class Widget:
 
     def register(self, event: str, handler: Callable):
         """
-        Register the event handler for the specified event.
-        The handler receives a single parameter, the widget
-        generating the event.
+        Register the event handler for the specified event (message).
+        The handler receives two parameters, the widget
+        generating the event and the message from the server.
 
         :param event: Name of the event
         :param handler: Callable.
@@ -685,7 +712,12 @@ class Button(Widget):
         }
 
         self._jshandlers['click'] = """
-            this.message({event: 'click'});
+            data = {
+                clientX: event.originalEvent.clientX,
+                clientY: event.originalEvent.clientY
+            }
+              
+            this.message({event: 'click', data: data});
         """
 
     # TODO: This seems to be an unnecessary intermediate step
@@ -704,7 +736,7 @@ class Button(Widget):
         print(f'{self.__class__.__name__}.on_click()')
         print(f'{len(self.subscribers["click"])} subscribers.')
         for subscriber in self.subscribers['click']:
-            subscriber(self)
+            subscriber(self, msg)
 
 
 class Input(Widget):

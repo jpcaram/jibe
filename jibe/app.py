@@ -63,7 +63,7 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 # noinspection PyAbstractClass
-class MultiAppHandler(tornado.web.RequestHandler):
+class MultiAppHandler(MainHandler):
     """
     Serves the top level html and core elements (javascript) of
     a Jibe MultiApp.
@@ -77,9 +77,14 @@ class MultiAppHandler(tornado.web.RequestHandler):
             sessionid = ''.join(choice(letter) for _ in range(10))
             self.set_cookie("sessionid", sessionid)
 
-        self.write(htmlt.render({
-            'appname': appname
-        }))
+        self.write(htmlt.render(
+            body=self.body(),
+            appname=appname,
+            scripts=self.scripts(),
+            cssfiles=self.cssfiles(),
+            presetup=self.presetup(),
+            css=self.css()
+        ))
 
 
 class MainApp(VBox):
@@ -100,50 +105,50 @@ class MainApp(VBox):
 
         print(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
-    def on_message(self, msg: Dict):
+    def on_message(self, message: Dict):
         """
         Called by the websocket handler's on_message. Overrides
         the parent widget's on_message. Delivers the message to
         the parent class (super) or to descendent (child).
 
-        :param msg: The message from the client.
+        :param message: The message from the client.
         :return: None
         """
         print(f'{self.__class__.__name__}.on_message():')
-        print(msg)
+        print(message)
 
-        if msg['id'] == self.identifier:
-            super().on_message(msg)
+        if message['id'] == self.identifier:
+            super().on_message(message)
         else:
-            self.descendent_index[msg['id']].on_message(msg)
+            self.descendent_index[message['id']].on_message(message)
 
-    def deliver(self, msg: Dict):
+    def deliver(self, message: Dict):
         """
         Delivers a message to the browser. If self.wshandler.connection
         is None (websocket has not been opened), the messages are queued in
         self.outbox. All queued messages are delivered once the websocket opens
         (self.wsopen is called).
 
-        :param msg: Message to be delivered.
+        :param message: Message to be delivered.
         :return: None
         """
         print(f'{self.__class__.__name__}.deliver()')
 
         # Queued messages will re-attempt delivery so the
         # identifier will already be attached to the path.
-        if len(msg['path']) == 0 or msg['path'][0] != self.identifier:
-            msg['path'].insert(0, self.identifier)
+        if len(message['path']) == 0 or message['path'][0] != self.identifier:
+            message['path'].insert(0, self.identifier)
 
         # if self.wshandler.connection is None:
         if not self.browser_side_ready:
             # Save the messages. They will be delivered when we open
             # the connection.
-            self.outbox.append(msg)
-            print(f'   Appended to outbox: {msg}')
+            self.outbox.append(message)
+            print(f'   Appended to outbox: {message}')
         else:
             # self.wshandler.connection.write_message(json.dumps(msg))
-            self.connection.write_message(json.dumps(msg))
-            print(f'   Sent out: {msg}')
+            self.connection.write_message(json.dumps(message))
+            print(f'   Sent out: {message}')
 
     @classmethod
     def make_tornado_app(cls):
@@ -182,7 +187,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     """
 
     mainApp = None
-    # connection = None
 
     def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
         pass
@@ -200,17 +204,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         :return:
         """
         print(f'################################# {self.__class__.__name__}.open()')
-        # if self.connection is None:
-        #     WebSocketHandler.connection = self
-        #
-        #     # Call the APPs handler for open websocket.
-        #     self.mainApp.wsopen()
-        # else:
-        #     print(f'Existing connection: {self.connection}')
-        #     raise RuntimeError('WS is in use.')
         self.app = self.mainApp(self)
-        # self.app.wsopen()  # TODO: This is redundant. Whatever is in there can
-        #                    #    be done in the constructor.
 
     def on_message(self, message):
         """
@@ -223,7 +217,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         """
         msg = json.loads(message)
         print(f'{self.__class__.__name__} GOT MSG: {msg}')
-        # self.mainApp.on_message(msg)
         self.app.on_message(msg)
 
     def on_close(self):
@@ -252,9 +245,8 @@ class MultiApp(tornado.web.Application):
             the URL to reach each App.
         """
 
-        # TODO: Get the path to the library files.
         # TODO: Support specifying alternative files.
-        assets_path = f"{Path(__file__).parent.absolute()}/../jibe/"
+        assets_path = Path(__file__).parent.absolute()
         print(f'Assets path: {assets_path}')
 
         handlers = [
