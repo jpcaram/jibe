@@ -56,18 +56,11 @@ class Accordion(Widget):
             }
         )
 
-        # self.body.children = [
-        #     ProgressBar(),
-        #     Label('Some label')
-        # ]
-
         self.children = [
             self.titlebar,
             self.body,
             Label('Another label')
         ]
-
-        # self.titlebar.register('click', self.on_toggle)
 
         self.renderOnChange = False
 
@@ -77,13 +70,10 @@ class Accordion(Widget):
         #   declared...
         self.properties['open'] = False
 
-    def on_bar_click(self, msg):
+    def on_bar_click(self, message):
         print("On Click of titlebar")
         # self.body.css({'display': 'inherit'})
         self.open = not self.open
-
-    # def on_toggle(self, source):
-    #     print("on_toggle()!")
 
     def on_change(self, propname, newval, oldval):
         super().on_change(propname, newval, oldval)
@@ -91,16 +81,6 @@ class Accordion(Widget):
             self.body.css({'display': 'inherit'})
         else:
             self.body.css({'display': 'none'})
-
-    # def on_children_change(self):
-    #     # self.body.update_descendents = lambda *x: None
-    #     self.body.children = [c for c in self._children]
-    #     self._children = []
-    #     # for child in self.children:
-    #     #     child.parent = self  # Invokes child.parent.update_descendents().
-
-    # def update_descendents(self, *args):
-    #     pass
 
     def on_children_append(self, *args, **kwargs):
         self.body.children.append(args[0])

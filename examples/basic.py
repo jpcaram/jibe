@@ -32,7 +32,13 @@ class ExampleApp(MainApp):
         ]
         self.children[0].register('click', self.on_button_click)
 
-    def on_button_click(self, source):
+    def on_button_click(self, source, message):
+        """
+        Callback for the button's 'click' event.
+        These always receive two parameter, the source widget from
+        which the event originated, and the entire message sent from
+        the client which contained this event.
+        """
         self.children[1].value = "Hello!"
 
 

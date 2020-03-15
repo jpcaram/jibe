@@ -30,6 +30,4 @@ class ExampleApp(MainApp):
 
 
 if __name__ == "__main__":
-    app = ExampleApp.make_tornado_app()
-    app.listen(8881)
-    tornado.ioloop.IOLoop.current().start()
+    ExampleApp.run(8881)

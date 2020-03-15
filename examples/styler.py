@@ -54,7 +54,7 @@ class StylerApp(MainApp):
             topbox
         ]
 
-    def on_click(self, source):
+    def on_click(self, source, message):
         print(f'Style Swapper App on_click(): {source.label}')
 
         if source.label.lower() == "black":

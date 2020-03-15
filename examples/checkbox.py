@@ -25,7 +25,13 @@ class ExampleApp(MainApp):
 
         self.btn.register("click", self.on_btn_click)
 
-    def on_btn_click(self, event):
+    def on_btn_click(self, source, message):
+        """
+        Callback for the button's click event.
+        These always receive the source widget and the client
+        message with the event. In this case source is
+        self.btn.
+        """
         print(f'Checked? {self.chk.checked}')
         self.chk.checked = True
 

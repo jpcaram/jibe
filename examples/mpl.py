@@ -57,7 +57,7 @@ class MPLApp(MainApp):
         self.chart.attr({'width': str(w), 'height': str(h)})
         self.chart.data = base64.encodebytes(image.getvalue()).decode('utf8')
 
-    def on_btn1(self, source):
+    def on_btn1(self, source, message):
         self.ax.clear()
         x = np.linspace(0, 10, num=100)
         y = np.sin(2*x)
@@ -67,7 +67,7 @@ class MPLApp(MainApp):
         self.figure.savefig(image, format='png')
         self.chart.data = base64.encodebytes(image.getvalue()).decode('utf8')
 
-    def on_btn2(self, source):
+    def on_btn2(self, source, message):
         self.ax.clear()
         x = np.linspace(0, 10, num=100)
         y = np.sin(x)
@@ -77,7 +77,7 @@ class MPLApp(MainApp):
         self.figure.savefig(image, format='png')
         self.chart.data = base64.encodebytes(image.getvalue()).decode('utf8')
 
-    def on_btn3(self, source):
+    def on_btn3(self, source, message):
         w, h = self.figure.get_size_inches() * self.figure.dpi
         self.chart.attr({'width': str(w), 'height': str(h)})
 

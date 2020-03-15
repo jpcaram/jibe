@@ -14,6 +14,9 @@ from pathlib import Path
 
 
 class GooglePieChart(VBox):
+    """
+    TODO: This example needs updating.
+    """
 
     def __init__(self):
         super().__init__()

@@ -41,7 +41,7 @@ class SwapperApp(MainApp):
 
         self.button.register('click', self.on_swap)
 
-    def on_swap(self, source):
+    def on_swap(self, source, message):
 
         left = self.left.children[0]
         right = self.right.children[0]

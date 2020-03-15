@@ -63,7 +63,7 @@ class AuthenticationApp(MainApp):
             self.redir.redirect('/b')
         # -------------------------------------
 
-    def on_click(self, source):
+    def on_click(self, source, message):
         self.status.value = ''
 
         if self.pwinput.value == "password":
@@ -97,7 +97,7 @@ class ExampleApp(MainApp):
         sid = connection.get_cookie('sessionid')
         session = connection.application.get_session(sid)
         print(f'[{__class__.__name__}] Session: {session}')
-        if not session:
+        if not session.authenticated:
             self.children = [Label('Not authorized')]  # Will never happen
             connection.close()
             return
@@ -127,14 +127,14 @@ class ExampleApp(MainApp):
         self.button.register('click', self.on_button_click)
         self.logoutbtn.register('click', self.on_logout)
 
-    def on_inbox_change(self):
-        print(f'{self.__class__.__name__}.on_inbox_change()')
+    # def on_inbox_change(self):
+    #     print(f'{self.__class__.__name__}.on_inbox_change()')
 
-    def on_button_click(self, source):
-        print(f'{self.__class__.__name__}.on_button_click()')
+    def on_button_click(self, source, message):
+        # print(f'{self.__class__.__name__}.on_button_click()')
         self.inbox.value = f"{self.connection.get_cookie('sessionid')}"
 
-    def on_logout(self, source):
+    def on_logout(self, source, message):
         sid = self.connection.get_cookie('sessionid')
         del self.connection.application.sessions[sid]
         self.redir.redirect('/a')

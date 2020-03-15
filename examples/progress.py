@@ -32,7 +32,7 @@ class ExampleApp(MainApp):
 
         self.button.register('click', self.on_button_click)
 
-    def on_button_click(self, source):
+    def on_button_click(self, source, message):
         print(f'{self.__class__.__name__}.on_button_click()')
         self.progress.value += 10
 

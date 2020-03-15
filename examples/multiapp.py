@@ -29,10 +29,10 @@ class ExampleAppA(MainApp):
         self.btn.register('click', self.on_button_click)
         self.btn_go2b.register("click", self.on_go2b)
 
-    def on_button_click(self, source):
+    def on_button_click(self, source, message):
         self.input.value = "Hello!"
 
-    def on_go2b(self, event):
+    def on_go2b(self, source, message):
         self.redir.redirect('/b')
 
 
@@ -53,11 +53,11 @@ class ExampleAppB(MainApp):
         self.btn_go2a.register("click", self.on_go2a)
         self.btn.register("click", self.on_btn_click)
 
-    def on_btn_click(self, event):
+    def on_btn_click(self, source, message):
         print(f'Checked? {self.chk.checked}')
         self.chk.checked = True
 
-    def on_go2a(self, event):
+    def on_go2a(self, source, message):
         self.redir.redirect('/a')
 
 
