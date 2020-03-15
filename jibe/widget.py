@@ -902,7 +902,7 @@ class Dropdown(Widget):
 
         # super().__setattr__('value', msg['properties']['value'])
         for subscriber in self.subscribers['change']:
-            subscriber(self)
+            subscriber(self, msg)
 
 
 class Label(Widget):
@@ -970,7 +970,7 @@ class CheckBox(Widget):
 
         print(f'{len(self.subscribers["change"])} subscribers.')
         for subscriber in self.subscribers['change']:
-            subscriber(self)
+            subscriber(self, msg)
 
 
 class Image(Widget):
