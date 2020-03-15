@@ -781,25 +781,25 @@ class Input(Widget):
         """
 
     @event_handler("change")
-    def on_change_msg(self, msg):
+    def on_change_msg(self, message):
         """
         Event handler for the "change" event. This is for a change in
         the widget's model in the browser, not the DOM's change event,
         however, the DOM's change event is first used to change the model,
         (see self._jshandlers['change'] above) which in turn causes this event.
 
-        :param msg:
+        :param message:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_change_msg({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({message})')
 
         # Use super().__setattr__ if you don't want to send an
         # update to the browser.
         # super().__setattr__('value', msg['properties']['value'])
-        self.value = msg['properties']['value']
+        self.value = message['properties']['value']
 
         for subscriber in self.subscribers['change']:
-            subscriber(self)
+            subscriber(self, message)
 
 
 class SelectMultiple(Widget):
