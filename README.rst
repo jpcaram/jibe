@@ -1,7 +1,7 @@
 The Jibe Full-Stack Framework
 =============================
 
-`<http://jibe.caram.cl/>`_
+Website: `<http://jibe.caram.cl/>`_ - Repository: `https://github.com/jpcaram/jibe`_
 
 Jibe is a Full-Stack Library and Framework for developing
 highly interactive web applications in pure Python.
@@ -15,7 +15,7 @@ Here is an example application:
 
 .. code-block:: python
 
-    from webpy import MainApp, Button, Input
+    from jibe import MainApp, Button, Input
 
     class ExampleApp(MainApp):
 
@@ -27,7 +27,7 @@ Here is an example application:
            ]
            self.children[0].register('click', self.on_button_click)
 
-       def on_button_click(self, source):
+       def on_button_click(self, source, message):
            self.children[1].value = "Hello!"
 
     if __name__ == "__main__":

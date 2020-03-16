@@ -9,14 +9,29 @@
 import setuptools
 from distutils.core import setup
 
+with open("README.rst", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='jibe',
-    version='0.1',
+    version='0.1.2',
     description='Pure-Python Full-Stack Web Framework',
+    long_description=long_description,
     author='Juan Pablo Caram',
     author_email='jpcaram@gmail.com',
     url='http://jibe.caram.cl',
     packages=['jibe'],
     requires=['tornado', 'jinja2', 'matplotlib', 'numpy'],
-    install_requires=['tornado', 'jinja2']
+    install_requires=['tornado', 'jinja2'],
+    python_requires='>=3.6',
+    package_dir={'jibe': 'jibe'},
+    package_data={'jibe': [
+        'app.css',
+        'app.js',
+        'page.html',
+        'lib/backbone.js',
+        'lib/handlebars.js',
+        'lib/jquery-1.12.4.js',
+        'lib/underscore.js'
+    ]}
 )
