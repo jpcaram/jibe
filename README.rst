@@ -1,7 +1,7 @@
 The Jibe Full-Stack Framework
 =============================
 
-Website: `<http://jibe.caram.cl/>`_ - Repository: `https://github.com/jpcaram/jibe`_
+Website: `<http://jibe.caram.cl/>`_ - Repository: `<https://github.com/jpcaram/jibe>`_
 
 Jibe is a Full-Stack Library and Framework for developing
 highly interactive web applications in pure Python.
