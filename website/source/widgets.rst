@@ -35,7 +35,7 @@ a call to ``on_button_click()``.
 There is very little going on under the hood, except for the
 behavior of two special variables as we'll see next.
 
-Widget.children
+Widget Children
 ---------------
 
 The ``children`` variable of a widget is aware when it is
@@ -45,7 +45,7 @@ This means that the list of children can be updated at any
 time, not just in the constructor of the widget, allowing
 for dynamic updates to the client.
 
-Widget.properties
+Widget Properties
 -----------------
 
 The ``properties`` dictionary of a widget is also aware of changes
