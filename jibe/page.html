@@ -11,7 +11,7 @@
         <script src="{{ src }}"></script>
     {% endfor %}
     {% for src in cssfiles %}
-        <link rel="stylesheet" type="text/css" href="app.css">
+        <link rel="stylesheet" type="text/css" href="{{ src }}">
     {% endfor %}
     <script>
         {{ presetup }}
