@@ -89,6 +89,13 @@ class MultiAppHandler(MainHandler):
 
 class MainApp(VBox):
 
+    main_handler_class = MainHandler
+    """
+    Used in make_tornado_app. Override and replace to change it.
+    """
+
+    assets_path = None
+
     def __init__(self, connection):
         """
         The MainApp class represents the top-level widget of a page.
@@ -156,14 +163,32 @@ class MainApp(VBox):
         class WSH(WebSocketHandler):
             mainApp = cls
 
-        return tornado.web.Application(
-            [
-                (r"/", MainHandler),
-                (r"/websocket", WSH),
-                (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
-                (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
-            ]
-        )
+        handlers = [
+            (r"/", cls.main_handler_class),
+            (r"/websocket", WSH),
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
+        ]
+
+        ap = cls.assets_path
+        if isinstance(ap, dict):
+            ap = [ap]
+        elif isinstance(ap, (list, tuple)):
+            pass
+        elif ap is None:
+            ap = []
+        else:
+            raise TypeError(f'{cls.__name__}.assets_path must be a'
+                            'dictionary, list, tuple or None')
+
+        for path in ap:
+            handlers.append(
+                (rf"/{path['to']}/(.*)",
+                 tornado.web.StaticFileHandler,
+                 {"path": f"{path['from']}/"})
+            )
+
+        return tornado.web.Application(handlers)
 
     @classmethod
     def run(cls, port=8881):
@@ -276,3 +301,71 @@ class MultiApp(tornado.web.Application):
         """
         self.listen(port)
         tornado.ioloop.IOLoop.current().start()
+
+
+class InJupyterMultiApp(MultiApp):
+    _io_loops = []
+    server = None
+    port = 8881
+    loop = None
+
+    # TODO: Identical to InJupyterApp.get_ioloop.
+    @classmethod
+    def get_ioloop(cls):
+        from tornado.ioloop import IOLoop
+        import threading
+        if not cls._io_loops:
+            print('No loop. Creating one.')
+            loop = IOLoop()
+            thread = threading.Thread(target=loop.start)
+            thread.daemon = True
+            thread.start()
+            cls._io_loops.append(loop)
+        return cls._io_loops[0]
+
+    @classmethod
+    def _start_server(cls):
+        from tornado.httpserver import HTTPServer
+
+        cls.server = HTTPServer(cls)
+        cls.server.listen(cls.port)
+
+    @classmethod
+    def juprun(cls, port=8881):
+        cls.port = port
+        cls.loop = cls.get_ioloop()
+        cls.loop.add_callback(cls._start_server)
+
+
+class InJupyterApp(MainApp):
+    _io_loops = []
+    server = None
+    port = 8881
+    loop = None
+
+    @classmethod
+    def get_ioloop(cls):
+        from tornado.ioloop import IOLoop
+        import threading
+        if not cls._io_loops:
+            print('No loop. Creating one.')
+            loop = IOLoop()
+            thread = threading.Thread(target=loop.start)
+            thread.daemon = True
+            thread.start()
+            cls._io_loops.append(loop)
+        return cls._io_loops[0]
+
+    @classmethod
+    def _start_server(cls):
+        from tornado.httpserver import HTTPServer
+
+        application = cls.make_tornado_app()
+        cls.server = HTTPServer(application)
+        cls.server.listen(cls.port)
+
+    @classmethod
+    def juprun(cls, port=8881):
+        cls.port = port
+        cls.loop = cls.get_ioloop()
+        cls.loop.add_callback(cls._start_server)
