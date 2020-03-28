@@ -89,12 +89,37 @@ class MultiAppHandler(MainHandler):
 
 class MainApp(VBox):
 
-    main_handler_class = MainHandler
+    main_handler_class: tornado.web.RequestHandler = MainHandler
     """
-    Used in make_tornado_app. Override and replace to change it.
+    This is the server's handler for http requests made on this app.
+    Used in MainApp.make_tornado_app(). Override and replace to change
+    to change the default behavior.
     """
 
     assets_path = None
+    """
+    Set to serve the files in a folder in the file system
+    on a specific URL path. For example:
+        
+        {'from': 'path/to/files', 'to': 'path/on/url'}
+        
+    This will make files available in the folder 'path/to/files'
+    on the URL 'path/on/url'.
+    
+    You can specify multiple pairs in a list:
+        
+        [
+            {'to': '...', 'from': '...'}, 
+            {'to': '...', 'from': '...'},
+            etc
+        ]
+        
+    Note: At this time, the 'from' path is relative to the
+    path where the app was started unless it is made absolute
+    by prepending a '/'. The 'to' path is always absolute,
+    i.e. a '/' is prepended. This behavior may change in
+    the future.
+    """
 
     def __init__(self, connection):
         """
@@ -158,7 +183,7 @@ class MainApp(VBox):
             print(f'   Sent out: {message}')
 
     @classmethod
-    def make_tornado_app(cls):
+    def make_tornado_app(cls) -> tornado.web.Application:
 
         class WSH(WebSocketHandler):
             mainApp = cls
@@ -170,6 +195,7 @@ class MainApp(VBox):
             (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
         ]
 
+        # Additional handlers for user-defined assets.
         ap = cls.assets_path
         if isinstance(ap, dict):
             ap = [ap]

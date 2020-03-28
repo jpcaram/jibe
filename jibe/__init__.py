@@ -1,8 +1,9 @@
 from .app import MainApp, WebSocketHandler, MainHandler, \
-    MultiAppHandler, MultiApp
+    MultiAppHandler, MultiApp, InJupyterApp, InJupyterMultiApp
 from .widget import Widget, Button, Input, HBox, VBox, \
     CheckBox, Label, NotifyList2, Image, ProgressBar, \
-    Dropdown, Redirect, SelectMultiple, event_handler
+    Dropdown, Redirect, SelectMultiple, event_handler, \
+    TextArea, Div, HTML
 from .page import htmlt
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     'Input',
     'HBox',
     'VBox',
+    'Div',
     'CheckBox',
     'Label',
     'NotifyList2',
@@ -21,9 +23,13 @@ __all__ = [
     'WebSocketHandler',
     "Dropdown",
     "SelectMultiple",
+    "TextArea",
     "Redirect",
+    "HTML",
     "htmlt",
     "event_handler",
     "MultiAppHandler",
-    "MultiApp"
+    "MultiApp",
+    "InJupyterApp",
+    "InJupyterMultiApp"
 ]

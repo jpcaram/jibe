@@ -178,9 +178,20 @@ class NotWidgetError(Exception):
 
 
 class Widget:
+    """
+    Jibe widget.
+    """
 
     def __init__(self, *args, style=None, identifier=None,
-                 renderOnChange=True, notifyServerOnChange=True):
+                 render_on_change=True, notify_server_on_change=True):
+        """
+
+        :param args:
+        :param style:
+        :param identifier:
+        :param render_on_change:
+        :param notify_server_on_change:
+        """
 
         # Avoid dynamic lookup, so use super().__setattr__()
         super().__setattr__('properties', LoudDict())
@@ -189,11 +200,11 @@ class Widget:
         # about the change.
         self.properties.set_change_callback(self.on_change)
 
-        self.renderOnChange = renderOnChange
+        self.renderOnChange = render_on_change
         """Whether the JS widget should render when there is
         a change in its model (properties)."""
 
-        self.notifyServerOnChange = notifyServerOnChange
+        self.notifyServerOnChange = notify_server_on_change
         """Whether the JS widget should send the server a
         message to notify the change in its model (properties)."""
 
@@ -468,7 +479,7 @@ class Widget:
         Called when this.children.remove() is called. Notifies the
         browser of the removal.
 
-        TODO: Is this working?
+        TODO: Not yet implemented.
 
         :param args:
         :param kwargs:
@@ -802,6 +813,69 @@ class Input(Widget):
             subscriber(self, message)
 
 
+class TextArea(Widget):
+    """
+    Multi-line text input.
+
+    Supported events: change.
+    """
+
+    def __init__(self, value='', **kwargs):
+
+        super().__init__(**kwargs)
+
+        # Do not overwrite self.properties. It is a LoudDict configured
+        # to trigger events on change. Only create and assign to items.
+        self.properties['value'] = value
+
+        self.tagname = "textarea"
+
+        # DOM NODE HANDLERS
+        # _jshandlers appears as "hadlers" in the JSON representation.
+        # These events are attached to the DOM node. In this case,
+        # this is the event triggered when the text in the input
+        # box changes. Here we save it to the model. This will
+        # trigger the render method for the widget in the browser. See below.
+        self._jshandlers['change'] = """
+            console.log(`[${this.id}] custom change handler.`);
+            this.model.set('value', this.el.value);
+        """
+
+        # RENDER METHOD OVERRIDE
+        # We don't need to render the widget in the DOM, just
+        # change it's 'value'.
+        # _jsrender appers as "render" in the JSON representation.
+        # TODO: Will this trigger the 'change' event in the DOM element
+        #   again, and therefore a 'change' in the model once more and
+        #   forever? In the model it may not get triggered again if the
+        #   value is not different.
+        self._jsrender = """
+            console.log(`[${this.id}] custom render():`);
+            this.el.value = this.model.get('value');
+        """
+
+    @event_handler("change")
+    def on_change_msg(self, message):
+        """
+        Event handler for the "change" event. This is for a change in
+        the widget's model in the browser, not the DOM's change event,
+        however, the DOM's change event is first used to change the model,
+        (see self._jshandlers['change'] above) which in turn causes this event.
+
+        :param message:
+        :return:
+        """
+        print(f'{self.__class__.__name__}.on_change_msg({message})')
+
+        # Use super().__setattr__ if you don't want to send an
+        # update to the browser.
+        # super().__setattr__('value', msg['properties']['value'])
+        self.value = message['properties']['value']
+
+        for subscriber in self.subscribers['change']:
+            subscriber(self, message)
+
+
 class SelectMultiple(Widget):
 
     def __init__(self, value=None, options=None, **kwargs):
@@ -931,6 +1005,17 @@ class Label(Widget):
         # self.tagname = "div"
 
         self.template_txt = "<p>{{ value }}</p>"
+
+
+class HTML(Widget):
+
+    def __init__(self, value="", **kwargs):
+        super().__init__(**kwargs)
+        self.properties['value'] = value
+        self._jsrender = """
+            this.$el.empty()
+            this.$el.html(this.model.get('value'));
+        """
 
 
 class CheckBox(Widget):
