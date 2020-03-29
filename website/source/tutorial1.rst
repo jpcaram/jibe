@@ -175,7 +175,7 @@ when a "click" happends, and to attack this method the the button's
 
 We will add this method to the ``ToDoApp``::
 
-    def on_add(self, source):
+    def on_add(self, source, message):
 
         self.tasksarea.children.append(
             TaskItem(self.input.value)
@@ -200,7 +200,7 @@ The last thing we need to implement is the removal of checked
 items. Again, we create a method to implement the action, and
 we connect it to the event::
 
-    def on_delete(self, source):
+    def on_delete(self, source, message):
 
         self.tasksarea.children = [
             item for item in self.tasksarea.children
