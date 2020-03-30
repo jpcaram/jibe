@@ -184,6 +184,13 @@ class MainApp(VBox):
 
     @classmethod
     def make_tornado_app(cls) -> tornado.web.Application:
+        """
+        Puts together the websocket handler and http handlers for this app
+        into a tornado.web.Application.
+
+        :return: A Tornado application that ew can then serve
+            at a specific port.
+        """
 
         class WSH(WebSocketHandler):
             mainApp = cls
@@ -252,7 +259,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         An instance of self.mainApp is created and saved in self.app.
 
-        :return:
+        :return: None
         """
         print(f'################################# {self.__class__.__name__}.open()')
         self.app = self.mainApp(self)
@@ -284,7 +291,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 class MultiApp(tornado.web.Application):
     """
     Creates a WebSocketHandler-derived class for each Jibe App.
-    The initializes itself (a tornado.web.Application) with with a list of
+    Then initializes itself (a tornado.web.Application) with a list of
     Tornado Handlers.
     """
 
@@ -293,19 +300,25 @@ class MultiApp(tornado.web.Application):
         Creates a Jibe MultiApp.
 
         :param kwargs: Jibe MainApps by name. The names are used as part of
-            the URL to reach each App.
+            the URL to reach each App. Additionally, 'assets_path' can be
+            used to specify user-defined folders to make available in the
+            form [{'to':..., 'from':...}, ...].
         """
 
         # TODO: Support specifying alternative files.
-        assets_path = Path(__file__).parent.absolute()
-        print(f'Assets path: {assets_path}')
+        jibe_assets_path = Path(__file__).parent.absolute()
+        print(f'Assets path: {jibe_assets_path}')
 
         handlers = [
-            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": assets_path}),
-            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": assets_path})
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": jibe_assets_path}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": jibe_assets_path})
         ]
 
         for name, cls in kwargs.items():
+            if not issubclass(cls, MainApp):
+                continue
+            # Create a new class inheriting from WebSocketHandler,
+            # and setting their mainApp to each cls.
             wsh = type(
                 'WSH' + name,
                 (WebSocketHandler, ),
@@ -313,6 +326,22 @@ class MultiApp(tornado.web.Application):
             )
             handlers.append((fr'/({name})', MultiAppHandler))
             handlers.append((fr'/{name}/websocket', wsh))
+
+        # User defined assets.
+        if 'assets_path' in kwargs:
+            ap = kwargs['assets_path']
+            if not isinstance(ap, (dict, list, tuple)):
+                raise TypeError(f'assets_path must be a '
+                                'dictionary, list or tuple')
+            if isinstance(ap, dict):
+                ap = [ap]
+
+            for path in ap:
+                handlers.append(
+                    (rf"/{path['to']}/(.*)",
+                     tornado.web.StaticFileHandler,
+                     {"path": f"{path['from']}/"})
+                )
 
         from pprint import pprint
         pprint(handlers)
@@ -349,18 +378,16 @@ class InJupyterMultiApp(MultiApp):
             cls._io_loops.append(loop)
         return cls._io_loops[0]
 
-    @classmethod
-    def _start_server(cls):
+    def _start_server(self):
         from tornado.httpserver import HTTPServer
 
-        cls.server = HTTPServer(cls)
-        cls.server.listen(cls.port)
+        self.server = HTTPServer(self)
+        self.server.listen(self.port)
 
-    @classmethod
-    def juprun(cls, port=8881):
-        cls.port = port
-        cls.loop = cls.get_ioloop()
-        cls.loop.add_callback(cls._start_server)
+    def juprun(self, port=8881):
+        self.port = port
+        self.loop = self.get_ioloop()
+        self.loop.add_callback(self._start_server)
 
 
 class InJupyterApp(MainApp):
