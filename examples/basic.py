@@ -10,11 +10,13 @@ from jibe import MainApp, Button, Input
 
 
 class ExampleApp(MainApp):
+    """
+    Minimal, fully-functional, example Jibe Application illustrating
+    widget composition with the use of the 'children' variable and
+    and handling browser events.
+    """
 
-    # def __new__(cls, connection):
-    #     instance = super(ExampleApp, cls).__new__(cls)
-    #     super(ExampleApp, cls).__init__(instance, connection)
-    #     return instance
+
 
     def __init__(self, connection):
         super().__init__(connection)

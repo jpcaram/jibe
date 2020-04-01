@@ -195,11 +195,12 @@ class MainApp(VBox):
         class WSH(WebSocketHandler):
             mainApp = cls
 
+        jibe_assets_path = Path(__file__).parent.absolute()
         handlers = [
             (r"/", cls.main_handler_class),
             (r"/websocket", WSH),
-            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"}),
-            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/"})
+            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{jibe_assets_path}/"}),
+            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{jibe_assets_path}/"})
         ]
 
         # Additional handlers for user-defined assets.
@@ -215,10 +216,13 @@ class MainApp(VBox):
                             'dictionary, list, tuple or None')
 
         for path in ap:
+            if path['from'][0] != '/':
+                raise ValueError(f'Assets path must be absolute: {path["from"]}')
+
+            print(f'ASSETS SOURCE: {path["from"]}')
             handlers.append(
-                (rf"/{path['to']}/(.*)",
-                 tornado.web.StaticFileHandler,
-                 {"path": f"{path['from']}/"})
+                (rf"/{path['to']}/(.*)", tornado.web.StaticFileHandler,
+                 {"path": f'{path["from"]}'})
             )
 
         return tornado.web.Application(handlers)
@@ -315,8 +319,10 @@ class MultiApp(tornado.web.Application):
         ]
 
         for name, cls in kwargs.items():
-            if not issubclass(cls, MainApp):
+
+            if type(cls) is not type or not issubclass(cls, MainApp):
                 continue
+
             # Create a new class inheriting from WebSocketHandler,
             # and setting their mainApp to each cls.
             wsh = type(
@@ -326,6 +332,28 @@ class MultiApp(tornado.web.Application):
             )
             handlers.append((fr'/({name})', MultiAppHandler))
             handlers.append((fr'/{name}/websocket', wsh))
+
+            # User-defined asses in app.
+            ap = cls.assets_path
+            if isinstance(ap, dict):
+                ap = [ap]
+            elif isinstance(ap, (list, tuple)):
+                pass
+            elif ap is None:
+                ap = []
+            else:
+                raise TypeError(f'{cls.__name__}.assets_path must be a'
+                                'dictionary, list, tuple or None')
+
+            for path in ap:
+                if path['from'][0] != '/':
+                    raise ValueError(f'Assets path must be absolute: {path["from"]}')
+
+                print(f'ASSETS SOURCE: {path["from"]}')
+                handlers.append(
+                    (rf"/{name}/{path['to']}/(.*)", tornado.web.StaticFileHandler,
+                     {"path": path["from"]})
+                )
 
         # User defined assets.
         if 'assets_path' in kwargs:
@@ -337,10 +365,13 @@ class MultiApp(tornado.web.Application):
                 ap = [ap]
 
             for path in ap:
+                if path['from'][0] != '/':
+                    raise ValueError(f'Assets path must be absolute: {path["from"]}')
+                print(f'ASSETS SOURCE: {path["from"]}')
                 handlers.append(
-                    (rf"/{path['to']}/(.*)",
+                    (str(Path(path['to'] + "/")) + r"(.*)",
                      tornado.web.StaticFileHandler,
-                     {"path": f"{path['from']}/"})
+                     {"path": path['from']})
                 )
 
         from pprint import pprint
