@@ -176,11 +176,11 @@ class MainApp(VBox):
             # Save the messages. They will be delivered when we open
             # the connection.
             self.outbox.append(message)
-            print(f'   Appended to outbox: {message}')
+            print(f'   Appended to outbox: {message["event"]}')
         else:
             # self.wshandler.connection.write_message(json.dumps(msg))
             self.connection.write_message(json.dumps(message))
-            print(f'   Sent out: {message}')
+            print(f'   Sent out: {"message"}')
 
     @classmethod
     def make_tornado_app(cls) -> tornado.web.Application:
