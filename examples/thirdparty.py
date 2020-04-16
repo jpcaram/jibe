@@ -6,8 +6,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from jibe import MainApp, Button, Input, MainHandler, \
-    WebSocketHandler, Label, Widget, VBox
+from jibe import MainApp, MainHandler, \
+    WebSocketHandler, Label, VBox
 import tornado.web
 import tornado.ioloop
 from pathlib import Path
