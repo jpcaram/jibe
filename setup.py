@@ -14,7 +14,7 @@ with open("README.rst", "r") as fh:
 
 setup(
     name='jibe',
-    version='0.1.2',
+    version='0.1.3',
     description='Pure-Python Full-Stack Web Framework',
     long_description=long_description,
     author='Juan Pablo Caram',
