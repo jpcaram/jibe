@@ -237,6 +237,7 @@ class MainApp(VBox):
         """
         app = cls.make_tornado_app()
         app.listen(port)
+        print(f'Listening on port {port}.')
         tornado.ioloop.IOLoop.current().start()
 
 

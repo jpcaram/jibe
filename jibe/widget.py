@@ -73,32 +73,32 @@ class NotifyList2(list):
     __imul__ = callback_method_x(list.__imul__, "_on_imul_callbacks")
 
 
-def event_handler(*args):
-    """
-    A decorator for methods.
-
-    Mark the method as an event handler. Simply sets the attribute
-    event_register to the given arguments tuple. This attribute is then
-    checked by the constructor of the class (eg. Widget).
-
-    Example:
-
-    Set @event_handler('click') on a method of a Widget. This will
-    define widget.subscribers['click']. In the marked method, call
-    the subscribers. The method will be called when the event is triggered.
-
-    Others can subscribe via widget.register('click', callback).
-
-    :param args:
-    :return:
-    """
-
-    def decorator(f):
-        # print(f'decorator({f})')
-        f.event_register = tuple(args)
-        return f
-
-    return decorator
+# def event_handler(*args):
+#     """
+#     A decorator for methods.
+#
+#     Mark the method as an event handler. Simply sets the attribute
+#     event_register to the given arguments tuple. This attribute is then
+#     checked by the constructor of the class (eg. Widget).
+#
+#     Example:
+#
+#     Set @event_handler('click') on a method of a Widget. This will
+#     define widget.subscribers['click']. In the marked method, call
+#     the subscribers. The method will be called when the event is triggered.
+#
+#     Others can subscribe via widget.register('click', callback).
+#
+#     :param args:
+#     :return:
+#     """
+#
+#     def decorator(f):
+#         # print(f'decorator({f})')
+#         f.event_register = tuple(args)
+#         return f
+#
+#     return decorator
 
 
 class LoudDict(dict):
@@ -228,7 +228,7 @@ class Widget:
         self._children._on_append_callbacks.append(self.on_children_append)
         self._children._on_remove_callbacks.append(self.on_children_remove)
 
-        self.local_event_handlers = {}
+        # self.local_event_handlers = {}
         """To define message-based event handlers within the object. This variable
         gets populated (further down in this constructor) with methods 
         market @event_handler. There can be only one handler (value) per event (key).
@@ -283,34 +283,40 @@ class Widget:
         self._jscustomMethods = {}
         """Defines Javascript widget methods that can be called from Python."""
 
-        # Process methods marked as event handlers
-        # (Decorated with @event_handler('event_name')).
-        # See self._jshandlers.
-        for method_name in dir(self):
-
-            # Skip properties
-            if isinstance(getattr(self.__class__, method_name, None), property):
-                continue
-
-            method = getattr(self, method_name)
-
-            # Methods only.
-            if callable(method) and not method_name.startswith('__'):  # It's a method.
-                try:
-                    # This will raise AttributeError if not a callback.
-                    # (Event handlers have attribute event_register which is a tuple).
-                    event_name = method.event_register[0]
-
-                    if event_name in self.local_event_handlers:
-                        raise TypeError(f'Event "{event_name}" of {repr(self)} already has a handler.')
-
-                    self.local_event_handlers[event_name] = method
-                    self.subscribers[event_name] = []
-                    print(f'{self.__class__.__name__}: Registered event "{event_name}"')
-                except AttributeError:  # Does not have 'event_register'
-                    pass
+        # # Process methods marked as event handlers
+        # # (Decorated with @event_handler('event_name')).
+        # # See self._jshandlers.
+        # for method_name in dir(self):
+        #
+        #     # Skip properties
+        #     if isinstance(getattr(self.__class__, method_name, None), property):
+        #         continue
+        #
+        #     method = getattr(self, method_name)
+        #
+        #     # Methods only.
+        #     if callable(method) and not method_name.startswith('__'):  # It's a method.
+        #         try:
+        #             # This will raise AttributeError if not a callback.
+        #             # (Event handlers have attribute event_register which is a tuple).
+        #             event_name = method.event_register[0]
+        #
+        #             if event_name in self.local_event_handlers:
+        #                 raise TypeError(f'Event "{event_name}" of {repr(self)} already has a handler.')
+        #
+        #             self.local_event_handlers[event_name] = method
+        #             self.subscribers[event_name] = []
+        #             print(f'{self.__class__.__name__}: Registered event "{event_name}"')
+        #         except AttributeError:  # Does not have 'event_register'
+        #             pass
 
         # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
+
+        # Children requested from browser.
+        self.register('children', self.on_children)
+
+        # Browser version of this widget is ready.
+        self.register('started', self.on_browser_side_ready)
 
     def __setattr__(self, key, value):
         """
@@ -504,9 +510,14 @@ class Widget:
         print(f'{repr(self)}.on_message()')
         # print(f'   says: {message}')
 
-        if 'event' in message and message['event'] in self.local_event_handlers:
-            print(f'   Forwarding to \"{message["event"]}\" event handler.')
-            self.local_event_handlers[message['event']](message)
+        # if 'event' in message and message['event'] in self.local_event_handlers:
+        #     print(f'   Forwarding to \"{message["event"]}\" event handler.')
+        #     self.local_event_handlers[message['event']](message)
+
+        # Dispatch to event subscribers.
+        if 'event' in message and message['event'] in self.subscribers:
+            for subscriber in self.subscribers[message['event']]:
+                subscriber(self, message)
 
     def message(self, message):
         """
@@ -559,21 +570,28 @@ class Widget:
         :return: None
         """
 
-        try:
-            if handler not in self.subscribers[event]:
-                self.subscribers[event].append(handler)
-        except KeyError:
-            raise NoSuchEvent(event)
+        if event not in self.subscribers:
+            self.subscribers[event] = []
 
-    @event_handler("children")
-    def on_children(self, msg=None):
+        if handler not in self.subscribers[event]:
+            self.subscribers[event].append(handler)
+
+        # try:
+        #     if handler not in self.subscribers[event]:
+        #         self.subscribers[event].append(handler)
+        # except KeyError:
+        #     raise NoSuchEvent(event)
+
+    # @event_handler("children")
+    def on_children(self, source, message):
         """
         Javascript counterpart request for children. Widgets that have children
         will request for their children once they are instantiated in the browser.
 
         TODO: Check if this is still being used.
 
-        :param msg: Message from the browser
+        :param source: Widget that triggered the event. Should be self.
+        :param message: Message from the browser.
         :return: None
         """
         print(f"{self.__class__.__name__}.on_children(...)")
@@ -589,13 +607,14 @@ class Widget:
             child.toJSON() for child in self.children
         ]})
 
-    @event_handler("started")
-    def on_browser_side_ready(self, msg):
+    # @event_handler("started")
+    def on_browser_side_ready(self, source, message):
         """
         Javascript counterpart is ready in the browser and can receive
         messages. Delivers all queued messages.
 
-        :param msg: Message from the browser
+        :param source: Widget where the event originated (should be self).
+        :param message: Message from the browser.
         :return: None
         """
 
@@ -604,8 +623,8 @@ class Widget:
             self.send_children()
 
         self.browser_side_ready = True
-        for msg in self.outbox:
-            self.deliver(msg)
+        for message in self.outbox:
+            self.deliver(message)
         self.outbox = []
 
     def style_string(self):
@@ -738,18 +757,19 @@ class Button(Widget):
     #   obscuring what is going on? Besides, it seems that all
     #   "event handlers" need to do the exact same thing,
     #   i.e. iterate over and call subscribers.
-    @event_handler("click")
-    def on_click(self, msg):
-        """
-        Main event handler for the "click" event.
-
-        :param msg:
-        :return:
-        """
-        print(f'{self.__class__.__name__}.on_click()')
-        print(f'{len(self.subscribers["click"])} subscribers.')
-        for subscriber in self.subscribers['click']:
-            subscriber(self, msg)
+    # @event_handler("click")
+    # def on_click(self, source, message):
+    #     """
+    #     Main event handler for the "click" event.
+    #
+    #     :param source: Widget that generated the event.
+    #     :param message: Message that triggered the event.
+    #     :return:
+    #     """
+    #     print(f'{self.__class__.__name__}.on_click()')
+    #     print(f'{len(self.subscribers["click"])} subscribers.')
+    #     for subscriber in self.subscribers['click']:
+    #         subscriber(self, message)
 
 
 class Input(Widget):
@@ -793,16 +813,19 @@ class Input(Widget):
             this.el.value = this.model.get('value');
         """
 
-    @event_handler("change")
-    def on_change_msg(self, message):
+        self.register("change", self.on_change_msg)
+
+    # @event_handler("change")
+    def on_change_msg(self, source, message):
         """
         Event handler for the "change" event. This is for a change in
         the widget's model in the browser, not the DOM's change event,
         however, the DOM's change event is first used to change the model,
         (see self._jshandlers['change'] above) which in turn causes this event.
 
-        :param message:
-        :return:
+        :param source: Originating widget.
+        :param message: Message that triggered the event.
+        :return: None
         """
         print(f'{self.__class__.__name__}.on_change_msg({message})')
 
@@ -811,8 +834,8 @@ class Input(Widget):
         # super().__setattr__('value', msg['properties']['value'])
         self.value = message['properties']['value']
 
-        for subscriber in self.subscribers['change']:
-            subscriber(self, message)
+        # for subscriber in self.subscribers['change']:
+        #     subscriber(self, message)
 
 
 class TextArea(Widget):
@@ -856,16 +879,19 @@ class TextArea(Widget):
             this.el.value = this.model.get('value');
         """
 
-    @event_handler("change")
-    def on_change_msg(self, message):
+        self.register("change", self.on_change_msg)
+
+    # @event_handler("change")
+    def on_change_msg(self, source, message):
         """
         Event handler for the "change" event. This is for a change in
         the widget's model in the browser, not the DOM's change event,
         however, the DOM's change event is first used to change the model,
         (see self._jshandlers['change'] above) which in turn causes this event.
 
-        :param message:
-        :return:
+        :param source: Originating widget.
+        :param message: Message that triggered the event.
+        :return: None
         """
         print(f'{self.__class__.__name__}.on_change_msg({message})')
 
@@ -874,8 +900,8 @@ class TextArea(Widget):
         # super().__setattr__('value', msg['properties']['value'])
         self.value = message['properties']['value']
 
-        for subscriber in self.subscribers['change']:
-            subscriber(self, message)
+        # for subscriber in self.subscribers['change']:
+        #     subscriber(self, message)
 
 
 class SelectMultiple(Widget):
@@ -981,7 +1007,9 @@ class Dropdown(Widget):
             this.model.set('value', this.el.value);
         """
 
-    @event_handler("change")
+        self.register("change", self.on_change_msg)
+
+    # @event_handler("change")
     def on_change_msg(self, msg):
         """
         Event handler for the "change" event.
@@ -994,8 +1022,8 @@ class Dropdown(Widget):
         self.value = msg['properties']['value']
 
         # super().__setattr__('value', msg['properties']['value'])
-        for subscriber in self.subscribers['change']:
-            subscriber(self, msg)
+        # for subscriber in self.subscribers['change']:
+        #     subscriber(self, msg)
 
 
 class Label(Widget):
@@ -1086,7 +1114,9 @@ class CheckBox(Widget):
             this.el.checked = this.model.get('checked');
         """
 
-    @event_handler("change")
+        self.register("change", self.on_change_msg)
+
+    # @event_handler("change")
     def on_change_msg(self, msg):
         """
         Event handler for the "change" event.
@@ -1100,9 +1130,9 @@ class CheckBox(Widget):
         # trigger another change event there.
         self.checked = msg['properties']['checked']
 
-        print(f'{len(self.subscribers["change"])} subscribers.')
-        for subscriber in self.subscribers['change']:
-            subscriber(self, msg)
+        # print(f'{len(self.subscribers["change"])} subscribers.')
+        # for subscriber in self.subscribers['change']:
+        #     subscriber(self, msg)
 
 
 class Image(Widget):

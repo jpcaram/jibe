@@ -2,7 +2,7 @@ from .app import MainApp, WebSocketHandler, MainHandler, \
     MultiAppHandler, MultiApp, InJupyterApp, InJupyterMultiApp
 from .widget import Widget, Button, Input, HBox, VBox, \
     CheckBox, Label, NotifyList2, Image, ProgressBar, \
-    Dropdown, Redirect, SelectMultiple, event_handler, \
+    Dropdown, Redirect, SelectMultiple, \
     TextArea, Div, HTML
 from .page import htmlt
 
@@ -27,7 +27,6 @@ __all__ = [
     "Redirect",
     "HTML",
     "htmlt",
-    "event_handler",
     "MultiAppHandler",
     "MultiApp",
     "InJupyterApp",
