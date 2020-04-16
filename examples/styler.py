@@ -6,9 +6,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import tornado.ioloop
 from jibe import MainApp
-from jibe import Widget, Button, Input, HBox, VBox, CheckBox, Label
+from jibe import Button, HBox, VBox, Label
 
 
 class StylerApp(MainApp):
@@ -70,6 +69,4 @@ class StylerApp(MainApp):
 
 
 if __name__ == "__main__":
-    app = StylerApp.make_tornado_app()
-    app.listen(8881)
-    tornado.ioloop.IOLoop.current().start()
+    StylerApp.run(8881)

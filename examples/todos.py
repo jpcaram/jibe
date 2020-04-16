@@ -6,9 +6,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import tornado.ioloop
 from jibe import MainApp
-from jibe import Widget, Button, Input, HBox, VBox, CheckBox, Label
+from jibe import Button, Input, HBox, VBox, CheckBox, Label
 
 
 class TodoWidget(HBox):
