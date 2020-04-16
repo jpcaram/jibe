@@ -8,7 +8,7 @@
 
 from random import choice
 from jinja2 import Template
-from typing import Callable, List
+from typing import Callable, List, Optional, Union
 import json
 
 
@@ -92,10 +92,9 @@ def event_handler(*args):
     :param args:
     :return:
     """
-    print(f'event_handler({args})')
 
     def decorator(f):
-        print(f'decorator({f})')
+        # print(f'decorator({f})')
         f.event_register = tuple(args)
         return f
 
@@ -361,7 +360,6 @@ class Widget:
         :param value: List of children.
         :return: None
         """
-        print(f'{self.__class__.__name__}.children({value})')
 
         try:
             iter(value)
@@ -392,7 +390,6 @@ class Widget:
         :param p: Parent widget.
         :return: None
         """
-        print(f'{self.__class__.__name__}.parent set.')
         self._parent = p
         self.parent.update_descendents(self, self.descendent_index)
 
@@ -438,7 +435,6 @@ class Widget:
 
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_children_change()')
 
         # Adopt children
         print(f'{repr(self)} adopting children:')
@@ -462,7 +458,6 @@ class Widget:
         :param kwargs:
         :return:
         """
-        print(f'{self.__class__.__name__}.on_children_append()')
 
         child = args[0]
         if not isinstance(child, Widget):
@@ -486,7 +481,6 @@ class Widget:
         :return:
         """
 
-        print(f'{self.__class__.__name__}.on_children_remove()')
         child = args[0]
         try:
             self.message({'event': 'remove', 'childid': child.identifier})
@@ -508,7 +502,7 @@ class Widget:
         :return:
         """
         print(f'{repr(self)}.on_message()')
-        print(f'   says: {message}')
+        # print(f'   says: {message}')
 
         if 'event' in message and message['event'] in self.local_event_handlers:
             print(f'   Forwarding to \"{message["event"]}\" event handler.')
@@ -544,11 +538,11 @@ class Widget:
             # TODO: self.outbox could possibly be "append-aware" and have the
             #   if/else logic (see above and below) in a callback.
             self.outbox.append(message)
-            print(f'   Appended to outbox: {message}')
+            # print(f'   Appended to outbox: {message}')
         else:
             try:
                 self.parent.deliver(message)
-                print(f'   Passed to parent: {message}')
+                print(f'   Passed to parent: {message["event"]}')
             except AttributeError:
                 raise OrfanWidgetError(
                     f'This widget is not attached to an app: {repr(self)}'
@@ -681,7 +675,7 @@ class Div(Widget):
 
 class HBox(Widget):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, children=None, **kwargs):
         style = {
             'display': 'flex',
             'flex-direction': 'row'
@@ -689,12 +683,16 @@ class HBox(Widget):
         if 'style' in kwargs:
             style.update(kwargs['style'])
             del kwargs['style']
-        super().__init__(*args, style=style, **kwargs)
+
+        super().__init__(style=style, **kwargs)
+
+        if children is not None:
+            self.children = children
 
 
 class VBox(Widget):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, children=None, **kwargs):
         style = {
             'display': 'flex',
             'flex-direction': 'column'
@@ -702,7 +700,11 @@ class VBox(Widget):
         if 'style' in kwargs:
             style.update(kwargs['style'])
             del kwargs['style']
-        super().__init__(*args, style=style, **kwargs)
+
+        super().__init__(style=style, **kwargs)
+
+        if children is not None:
+            self.children = children
 
 
 class Button(Widget):
@@ -919,8 +921,25 @@ class SelectMultiple(Widget):
 
 
 class Dropdown(Widget):
+    """
+    A single-selection drop-down menu, based on the HTML
+    "<select>" tag.
+    """
 
-    def __init__(self, value=None, options=None, **kwargs):
+    def __init__(self, value: Optional[str] = None,
+                 options: Optional[List[str]] = None, **kwargs):
+        """
+        Creates an instance of the Dropdown widget.
+
+        :param value: Initial value of the property 'value'. Default
+            is None. In such case the value property is set to the
+            first element of options.
+        :param options: Initial value of the property 'options'.
+            Default is None. In such case, the options property is
+            set to [value].
+        :param kwargs: Additional parameters to pass to the
+            Widget class constructor.
+        """
 
         super().__init__(**kwargs)
 
@@ -1008,8 +1027,20 @@ class Label(Widget):
 
 
 class HTML(Widget):
+    """
+    Plain HTML encapsulated inside a Div.
 
-    def __init__(self, value="", **kwargs):
+    Properties: value - HTML text.
+    """
+
+    def __init__(self, value: str = "", **kwargs):
+        """
+        Creates an instance of an HTML widget.
+
+        :param value: Initial value of the 'value' properety.
+        :param kwargs: Additional parameters to pass to the
+            Widget class constructor.
+        """
         super().__init__(**kwargs)
         self.properties['value'] = value
         self._jsrender = """
@@ -1019,8 +1050,24 @@ class HTML(Widget):
 
 
 class CheckBox(Widget):
+    """
+    A chack box. This widget represents a HTML element
+    of the form "<input type='checkbox'>".
 
-    def __init__(self, checked=False, **kwargs):
+    Properties: checked.
+
+    Events: changed - Change in the value of its properties.
+    """
+
+    def __init__(self, checked: bool = False, **kwargs):
+        """
+        Creates a CheckBox widget.
+
+        :param checked: Initial value of the checked property. Default
+            is False.
+        :param kwargs: Additional arguments to provide to
+            the Widget class constructor.
+        """
         super().__init__(**kwargs)
         self.properties['checked'] = checked
 
