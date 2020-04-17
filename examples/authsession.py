@@ -6,18 +6,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from jibe import MainApp, Button, Input, CheckBox, WebSocketHandler, \
-    Redirect, Label, VBox, HBox
-import tornado.web
-import tornado.ioloop
-from pathlib import Path
-
-
-class Session:
-
-    def __init__(self):
-
-        self.authenticated = False
+from jibe import MainApp, Button, Input, \
+    Redirect, Label, VBox, HBox, MultiApp
 
 
 class AuthenticationApp(MainApp):
@@ -29,7 +19,6 @@ class AuthenticationApp(MainApp):
         self.pwinput = Input()
         self.btn = Button('Login')
 
-        # TODO: If not a child, should raise error when calling redirect().
         self.redir = Redirect()
         self.status = Label('Please enter your password.')
 
@@ -93,7 +82,8 @@ class ExampleApp(MainApp):
         # MainApp.__init__: self.connection = connection
         super().__init__(connection)
 
-        # #### Authentication Verification #####
+        # ---- Authentication Verification ----
+        # If NOT authenticated, close the connection immediately.
         sid = connection.get_cookie('sessionid')
         session = connection.application.get_session(sid)
         print(f'[{__class__.__name__}] Session: {session}')
@@ -101,7 +91,7 @@ class ExampleApp(MainApp):
             self.children = [Label('Not authorized')]  # Will never happen
             connection.close()
             return
-        # ### Done with authentication verification ####
+        # ---- Done with authentication verification ----
 
         self.button = Button()
         self.inbox = Input()
@@ -116,7 +106,7 @@ class ExampleApp(MainApp):
 
         self.box2 = VBox()
         self.box2.children = [
-            Label("This the main app. You have been successfully authenticated."),
+            Label("This is the main app. You have been successfully authenticated."),
             self.box1,
             self.logoutbtn
         ]
@@ -127,11 +117,7 @@ class ExampleApp(MainApp):
         self.button.register('click', self.on_button_click)
         self.logoutbtn.register('click', self.on_logout)
 
-    # def on_inbox_change(self):
-    #     print(f'{self.__class__.__name__}.on_inbox_change()')
-
     def on_button_click(self, source, message):
-        # print(f'{self.__class__.__name__}.on_button_click()')
         self.inbox.value = f"{self.connection.get_cookie('sessionid')}"
 
     def on_logout(self, source, message):
@@ -140,54 +126,20 @@ class ExampleApp(MainApp):
         self.redir.redirect('/a')
 
 
-class WSHA(WebSocketHandler):
-    mainApp = AuthenticationApp
-
-
-class WSHB(WebSocketHandler):
-    mainApp = ExampleApp
-
-
-from jibe import htmlt
-from random import choice
-letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-
-# noinspection PyAbstractClass
-class MainHandler_(tornado.web.RequestHandler):
-    """
-    Serves the top level html and core elements (javascript) of
-    the application.
-    """
-
-    def get(self, appname):
-
-        sessionid = self.get_cookie("sessionid")
-        if not sessionid:
-            sessionid = ''.join(choice(letter) for _ in range(10))
-            self.set_cookie("sessionid", sessionid)
-
-        self.write(htmlt.render({
-            'appname': appname
-        }))
-
-
-folder = 'jibe'
-
-
-class MultiApp(tornado.web.Application):
+class Session:
 
     def __init__(self):
 
+        self.authenticated = False
+
+
+class AuthMultiApp(MultiApp):
+
+    def __init__(self, **kwargs):
+
         self.sessions = {}
 
-        super().__init__([
-            (r"/(a|b)", MainHandler_),
-            (r"/a/websocket", WSHA),
-            (r"/b/websocket", WSHB),
-            (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../{folder}/"}),
-            (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": f"{Path(__file__).parent.absolute()}/../{folder}/"})
-        ])
+        super().__init__(**kwargs)
 
     def get_session(self, sid):
 
@@ -200,5 +152,8 @@ class MultiApp(tornado.web.Application):
 
 
 if __name__ == "__main__":
-    MultiApp().listen(8881)
-    tornado.ioloop.IOLoop.current().start()
+    mapp = AuthMultiApp(
+        a=AuthenticationApp,
+        b=ExampleApp
+    )
+    mapp.run(port=8881)
