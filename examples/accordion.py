@@ -42,7 +42,8 @@ class Accordion(Widget):
         self.titlebar._jshandlers['click'] = """
             this.message({event: 'click'});
         """
-        self.titlebar.local_event_handlers['click'] = self.on_bar_click
+
+        # self.titlebar.local_event_handlers['click'] = self.on_bar_click
 
         self.body = VBox(
             style={
@@ -70,7 +71,9 @@ class Accordion(Widget):
         #   declared...
         self.properties['open'] = False
 
-    def on_bar_click(self, message):
+        self.titlebar.register('click', self.on_bar_click)
+
+    def on_bar_click(self, source, message):
         print("On Click of titlebar")
         # self.body.css({'display': 'inherit'})
         self.open = not self.open
