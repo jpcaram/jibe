@@ -2,6 +2,10 @@ import unittest
 from jibe import NotifyList2
 
 
+# TODO: The callbacks in NotifyList2 are missing the
+#       reference to the NotifyList2 object in the parameters.
+
+
 class MyTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -12,8 +16,15 @@ class MyTestCase(unittest.TestCase):
         n = NotifyList2([1, 2, 'a'])
 
         def callback_append(obj, *args, **kwargs):
+            """
+
+            :param obj: What is being appended.
+            :param args: Empty [] for append.
+            :param kwargs: Empty {} for append.
+            :return: None
+            """
             print("callback_append() got called", args, kwargs)
-            self.x = args[0]
+            self.x = obj
 
         n._on_append_callbacks.append(callback_append)
 
@@ -29,7 +40,7 @@ class MyTestCase(unittest.TestCase):
 
         def callback_setitem(obj, *args, **kwargs):
             print("callback_setitem() got called", args, kwargs)
-            self.x = args[1]  # 0 is the index
+            self.x = args[0]  # 0 is the index
 
         n._on_setitem_callbacks.append(callback_setitem)
 
@@ -44,7 +55,7 @@ class MyTestCase(unittest.TestCase):
 
         def callback_extend(obj, *args, **kwargs):
             print("callback_extend() got called", args, kwargs)
-            self.x = args[0]
+            self.x = obj
 
         n._on_extend_callbacks.append(callback_extend)
 
@@ -63,7 +74,7 @@ class MyTestCase(unittest.TestCase):
         def callback_iadd(obj, *args, **kwargs):
             """When obj += [...]"""
             print("callback_iadd() got called", args, kwargs)
-            self.x = args[0]
+            self.x = obj
 
         n._on_iadd_callbacks.append(callback_iadd)
 

@@ -39,7 +39,7 @@ class TestBasic(TestCase):
         #################################
         """)
         self.browser.get('http://localhost:8881')
-        sleep(5)
+        sleep(0.5)
         results = self.browser.find_elements_by_class_name('widget')
         self.assertEqual(2, len(results))
 
@@ -50,7 +50,7 @@ class TestBasic(TestCase):
         #################################
         """)
         self.browser.get('http://localhost:8881')
-        sleep(1)
+        sleep(0.5)
         results = self.browser.find_elements_by_class_name('widget')
         btn = results[0]
         inp = results[1]
