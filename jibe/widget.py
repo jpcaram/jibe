@@ -1010,16 +1010,17 @@ class Dropdown(Widget):
         self.register("change", self.on_change_msg)
 
     # @event_handler("change")
-    def on_change_msg(self, msg):
+    def on_change_msg(self, source, message):
         """
         Event handler for the "change" event.
 
-        :param msg:
-        :return:
+        :param source: Originating widget.
+        :param message: Triggering message.
+        :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({message})')
 
-        self.value = msg['properties']['value']
+        self.value = message['properties']['value']
 
         # super().__setattr__('value', msg['properties']['value'])
         # for subscriber in self.subscribers['change']:
@@ -1117,18 +1118,19 @@ class CheckBox(Widget):
         self.register("change", self.on_change_msg)
 
     # @event_handler("change")
-    def on_change_msg(self, msg):
+    def on_change_msg(self, source, message):
         """
         Event handler for the "change" event.
 
-        :param msg:
-        :return:
+        :param source: Originating widget.
+        :param message: Triggering message.
+        :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({msg})')
+        print(f'{self.__class__.__name__}.on_change_msg({message})')
 
         # This will trigger a message back to the browser but wont
         # trigger another change event there.
-        self.checked = msg['properties']['checked']
+        self.checked = message['properties']['checked']
 
         # print(f'{len(self.subscribers["change"])} subscribers.')
         # for subscriber in self.subscribers['change']:

@@ -319,6 +319,7 @@ class MultiApp(tornado.web.Application):
             (r"/(.*\.css)", tornado.web.StaticFileHandler, {"path": jibe_assets_path})
         ]
 
+        # Create request handlers for each of the individual applications.
         for name, cls in kwargs.items():
 
             if type(cls) is not type or not issubclass(cls, MainApp):
@@ -387,6 +388,7 @@ class MultiApp(tornado.web.Application):
         :return: None
         """
         self.listen(port)
+        print(f'Listening on port {port}.')
         tornado.ioloop.IOLoop.current().start()
 
 
