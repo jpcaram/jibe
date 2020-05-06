@@ -10,7 +10,12 @@ from random import choice
 from jinja2 import Template
 from typing import Callable, List, Optional, Union
 import json
+import logging
+import sys
 
+
+logger = logging.getLogger('jibe')
+logger.setLevel(logging.DEBUG)
 
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
@@ -558,6 +563,10 @@ class Widget:
                 raise OrfanWidgetError(
                     f'This widget is not attached to an app: {repr(self)}'
                 )
+
+    def unregister(self, event: str, handler: Callable):
+
+        self.subscribers[event].remove(handler)
 
     def register(self, event: str, handler: Callable):
         """

@@ -15,7 +15,14 @@ from .page import htmlt
 from typing import List, Dict, Optional, Awaitable
 from pathlib import Path
 from random import choice
+import logging
+import sys
 
+
+logger = logging.getLogger('jibe')
+logger.setLevel(logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 letter = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
@@ -70,7 +77,7 @@ class MultiAppHandler(MainHandler):
     """
 
     def get(self, appname):
-        print(f'{__class__.__name__}.get("{appname}")')
+        logger.debug(f'{__class__.__name__}.get("{appname}")')
 
         sessionid = self.get_cookie("sessionid")
         if not sessionid:
@@ -99,14 +106,14 @@ class MainApp(VBox):
     assets_path = None
     """
     Set to serve the files in a folder in the file system
-    on a specific URL path. For example:
+    on a specific URL path. For example::
         
         {'from': 'path/to/files', 'to': 'path/on/url'}
         
     This will make files available in the folder 'path/to/files'
     on the URL 'path/on/url'.
     
-    You can specify multiple pairs in a list:
+    You can specify multiple pairs in a list::
         
         [
             {'to': '...', 'from': '...'}, 
@@ -129,13 +136,13 @@ class MainApp(VBox):
         :param connection: Instance of
             WebSocketHandler(tornado.websocket.WebSocketHandler)
         """
-        print(f'{self.__class__.__name__}.__init__()')
+        logger.debug(f'{self.__class__.__name__}.__init__()')
 
         super().__init__(identifier='topwidget')
 
         self.connection = connection
 
-        print(f'{self.__class__.__name__}.identifier == {self.identifier}')
+        logger.debug(f'{self.__class__.__name__}.identifier == {self.identifier}')
 
     def on_message(self, message: Dict):
         """
@@ -146,8 +153,8 @@ class MainApp(VBox):
         :param message: The message from the client.
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_message():')
-        print(message)
+        logger.debug(f'{self.__class__.__name__}.on_message():')
+        logger.debug(message)
 
         if message['id'] == self.identifier:
             super().on_message(message)
@@ -164,7 +171,7 @@ class MainApp(VBox):
         :param message: Message to be delivered.
         :return: None
         """
-        print(f'{self.__class__.__name__}.deliver()')
+        logger.debug(f'{self.__class__.__name__}.deliver()')
 
         # Queued messages will re-attempt delivery so the
         # identifier will already be attached to the path.
@@ -176,11 +183,11 @@ class MainApp(VBox):
             # Save the messages. They will be delivered when we open
             # the connection.
             self.outbox.append(message)
-            print(f'   Appended to outbox: {message["event"]}')
+            logger.debug(f'   Appended to outbox: {message["event"]}')
         else:
             # self.wshandler.connection.write_message(json.dumps(msg))
             self.connection.write_message(json.dumps(message))
-            print(f'   Sent out: {"message"}')
+            logger.debug(f'   Sent out: {"message"}')
 
     @classmethod
     def make_tornado_app(cls) -> tornado.web.Application:
@@ -219,7 +226,7 @@ class MainApp(VBox):
             if path['from'][0] != '/':
                 raise ValueError(f'Assets path must be absolute: {path["from"]}')
 
-            print(f'ASSETS SOURCE: {path["from"]}')
+            logger.debug(f'ASSETS SOURCE: {path["from"]}')
             handlers.append(
                 (rf"/{path['to']}/(.*)", tornado.web.StaticFileHandler,
                  {"path": f'{path["from"]}'})
@@ -237,7 +244,7 @@ class MainApp(VBox):
         """
         app = cls.make_tornado_app()
         app.listen(port)
-        print(f'Listening on port {port}.')
+        logger.info(f'Listening on port {port}.')
         tornado.ioloop.IOLoop.current().start()
 
 
@@ -266,7 +273,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         :return: None
         """
-        print(f'################################# {self.__class__.__name__}.open()')
+        logger.debug(f'###### {self.__class__.__name__}.open() ######')
         self.app = self.mainApp(self)
 
     def on_message(self, message):
@@ -279,7 +286,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         :return: None
         """
         msg = json.loads(message)
-        print(f'{self.__class__.__name__} GOT MSG: {msg}')
+        logger.debug(f'{self.__class__.__name__} GOT MSG: {msg}')
         self.app.on_message(msg)
 
     def on_close(self):
@@ -289,7 +296,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_close()')
+        logger.debug(f'{self.__class__.__name__}.on_close()')
         WebSocketHandler.connection = None
 
 
@@ -312,7 +319,7 @@ class MultiApp(tornado.web.Application):
 
         # TODO: Support specifying alternative files.
         jibe_assets_path = Path(__file__).parent.absolute()
-        print(f'Assets path: {jibe_assets_path}')
+        logger.debug(f'Assets path: {jibe_assets_path}')
 
         handlers = [
             (r"/(.*\.js)", tornado.web.StaticFileHandler, {"path": jibe_assets_path}),
@@ -351,7 +358,7 @@ class MultiApp(tornado.web.Application):
                 if path['from'][0] != '/':
                     raise ValueError(f'Assets path must be absolute: {path["from"]}')
 
-                print(f'ASSETS SOURCE: {path["from"]}')
+                logger.debug(f'ASSETS SOURCE: {path["from"]}')
                 handlers.append(
                     (rf"/{name}/{path['to']}/(.*)", tornado.web.StaticFileHandler,
                      {"path": path["from"]})
@@ -369,15 +376,13 @@ class MultiApp(tornado.web.Application):
             for path in ap:
                 if path['from'][0] != '/':
                     raise ValueError(f'Assets path must be absolute: {path["from"]}')
-                print(f'ASSETS SOURCE: {path["from"]}')
+                logger.debug(f'ASSETS SOURCE: {path["from"]}')
                 handlers.append(
                     (str(Path(path['to'] + "/")) + r"(.*)",
                      tornado.web.StaticFileHandler,
                      {"path": path['from']})
                 )
 
-        from pprint import pprint
-        pprint(handlers)
         super().__init__(handlers, debug=True)
 
     def run(self, port=8881):
@@ -388,7 +393,7 @@ class MultiApp(tornado.web.Application):
         :return: None
         """
         self.listen(port)
-        print(f'Listening on port {port}.')
+        logger.debug(f'Listening on port {port}.')
         tornado.ioloop.IOLoop.current().start()
 
 
@@ -404,7 +409,7 @@ class InJupyterMultiApp(MultiApp):
         from tornado.ioloop import IOLoop
         import threading
         if not cls._io_loops:
-            print('No loop. Creating one.')
+            logger.debug('No loop. Creating one.')
             loop = IOLoop()
             thread = threading.Thread(target=loop.start)
             thread.daemon = True
@@ -435,7 +440,7 @@ class InJupyterApp(MainApp):
         from tornado.ioloop import IOLoop
         import threading
         if not cls._io_loops:
-            print('No loop. Creating one.')
+            logger.debug('No loop. Creating one.')
             loop = IOLoop()
             thread = threading.Thread(target=loop.start)
             thread.daemon = True
