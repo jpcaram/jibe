@@ -411,6 +411,7 @@ class Widget2 extends Backbone.View {
         // Handlers receiver the 'event' parameter containing an event object.
         for (let [handlerName, handlerBody] of Object.entries(widgetJSON.handlers)) {
             newWidget.$el.on(handlerName, Function('event', handlerBody).bind(newWidget));
+            console.log('[' + this.id + ' for ' + newWidget.id + '] Installed handler for event: ' + handlerName)
         }
 
         // Custom render() method.
