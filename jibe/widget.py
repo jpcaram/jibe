@@ -7,11 +7,9 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from random import choice
-from jinja2 import Template
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional
 import json
 import logging
-import sys
 
 
 logger = logging.getLogger('jibe')
@@ -76,34 +74,6 @@ class NotifyList2(list):
     __setitem__ = callback_method_x(list.__setitem__, "_on_setitem_callbacks")
     __iadd__ = callback_method_x(list.__iadd__, "_on_iadd_callbacks")
     __imul__ = callback_method_x(list.__imul__, "_on_imul_callbacks")
-
-
-# def event_handler(*args):
-#     """
-#     A decorator for methods.
-#
-#     Mark the method as an event handler. Simply sets the attribute
-#     event_register to the given arguments tuple. This attribute is then
-#     checked by the constructor of the class (eg. Widget).
-#
-#     Example:
-#
-#     Set @event_handler('click') on a method of a Widget. This will
-#     define widget.subscribers['click']. In the marked method, call
-#     the subscribers. The method will be called when the event is triggered.
-#
-#     Others can subscribe via widget.register('click', callback).
-#
-#     :param args:
-#     :return:
-#     """
-#
-#     def decorator(f):
-#         # print(f'decorator({f})')
-#         f.event_register = tuple(args)
-#         return f
-#
-#     return decorator
 
 
 class LoudDict(dict):
@@ -288,35 +258,6 @@ class Widget:
         self._jscustomMethods = {}
         """Defines Javascript widget methods that can be called from Python."""
 
-        # # Process methods marked as event handlers
-        # # (Decorated with @event_handler('event_name')).
-        # # See self._jshandlers.
-        # for method_name in dir(self):
-        #
-        #     # Skip properties
-        #     if isinstance(getattr(self.__class__, method_name, None), property):
-        #         continue
-        #
-        #     method = getattr(self, method_name)
-        #
-        #     # Methods only.
-        #     if callable(method) and not method_name.startswith('__'):  # It's a method.
-        #         try:
-        #             # This will raise AttributeError if not a callback.
-        #             # (Event handlers have attribute event_register which is a tuple).
-        #             event_name = method.event_register[0]
-        #
-        #             if event_name in self.local_event_handlers:
-        #                 raise TypeError(f'Event "{event_name}" of {repr(self)} already has a handler.')
-        #
-        #             self.local_event_handlers[event_name] = method
-        #             self.subscribers[event_name] = []
-        #             print(f'{self.__class__.__name__}: Registered event "{event_name}"')
-        #         except AttributeError:  # Does not have 'event_register'
-        #             pass
-
-        # self.children = [] if len(args) == 0 else args[1]  # This will trigger a message, even if empty.
-
         # Children requested from browser.
         self.register('children', self.on_children)
 
@@ -413,7 +354,7 @@ class Widget:
         :param args: Widget, Dictionary of widgets by identifier or List of Widgets.
         :return: None
         """
-        print(f'{self.__class__.__name__}.update_descendents()')
+        logger.debug(f'{self.__class__.__name__}.update_descendents()')
 
         for branch in args:
             if isinstance(branch, Widget):
@@ -429,7 +370,7 @@ class Widget:
         try:
             self.parent.update_descendents(self.descendent_index)
         except AttributeError:
-            print(f"[{self.identifier}] This widget does not have a parent to notify about descendents.")
+            logger.warning(f"[{self.identifier}] This widget does not have a parent to notify about descendents.")
 
     def template(self):
         return self.template_txt
@@ -448,9 +389,9 @@ class Widget:
         """
 
         # Adopt children
-        print(f'{repr(self)} adopting children:')
+        logger.debug(f'{repr(self)} adopting children:')
         for child in self.children:
-            print(f'   {repr(child)} adopted.')
+            logger.debug(f'   {repr(child)} adopted.')
             child.parent = self  # Invokes child.parent.update_descendents().
 
         # Notify the client if it is ready. If we do it before it is ready,
@@ -475,7 +416,7 @@ class Widget:
             raise NotWidgetError(f'{child} is not a Widget.')
 
         # Adopt the child
-        print(f'{repr(self)} adopting child: {repr(child)}')
+        logger.debug(f'{repr(self)} adopting child: {repr(child)}')
         child.parent = self
 
         self.message({'event': 'append', 'child': child.toJSON()})
@@ -496,7 +437,7 @@ class Widget:
         try:
             self.message({'event': 'remove', 'childid': child.identifier})
         except OrfanWidgetError:
-            print("Temporarily allowing OrfanWidgetError!")
+            logger.warning("Temporarily allowing OrfanWidgetError!")
 
     def __repr__(self):
         return f'{self.__class__.__name__}(id="{self.identifier}")'
@@ -512,12 +453,7 @@ class Widget:
         :param message:
         :return:
         """
-        print(f'{repr(self)}.on_message()')
-        # print(f'   says: {message}')
-
-        # if 'event' in message and message['event'] in self.local_event_handlers:
-        #     print(f'   Forwarding to \"{message["event"]}\" event handler.')
-        #     self.local_event_handlers[message['event']](message)
+        logger.debug(f'{repr(self)}.on_message()')
 
         # Dispatch to event subscribers.
         if 'event' in message and message['event'] in self.subscribers:
@@ -543,7 +479,7 @@ class Widget:
         :param message:
         :return:
         """
-        print(f'{self.__class__.__name__}.deliver()')
+        logger.debug(f'{self.__class__.__name__}.deliver()')
 
         # Queued messages will re-attempt delivery so the
         # identifier will already be attached to the path.
@@ -554,11 +490,10 @@ class Widget:
             # TODO: self.outbox could possibly be "append-aware" and have the
             #   if/else logic (see above and below) in a callback.
             self.outbox.append(message)
-            # print(f'   Appended to outbox: {message}')
         else:
             try:
                 self.parent.deliver(message)
-                print(f'   Passed to parent: {message["event"]}')
+                logger.debug(f'   Passed to parent: {message["event"]}')
             except AttributeError:
                 raise OrfanWidgetError(
                     f'This widget is not attached to an app: {repr(self)}'
@@ -585,12 +520,6 @@ class Widget:
         if handler not in self.subscribers[event]:
             self.subscribers[event].append(handler)
 
-        # try:
-        #     if handler not in self.subscribers[event]:
-        #         self.subscribers[event].append(handler)
-        # except KeyError:
-        #     raise NoSuchEvent(event)
-
     # @event_handler("children")
     def on_children(self, source, message):
         """
@@ -603,7 +532,7 @@ class Widget:
         :param message: Message from the browser.
         :return: None
         """
-        print(f"{self.__class__.__name__}.on_children(...)")
+        logger.debug(f"{self.__class__.__name__}.on_children(...)")
         self.send_children()
 
     def send_children(self):
@@ -690,7 +619,7 @@ class Widget:
         :param oldval: Previous value of the property.
         :returns: None
         """
-        print(f"{self.__class__.__name__}.on_change('{propname}')")
+        logger.debug(f"{self.__class__.__name__}.on_change('{propname}')")
         self.message({'event': 'properties',
                       'properties': {propname: newval}})
 
@@ -761,25 +690,6 @@ class Button(Widget):
             this.message({event: 'click', data: data});
         """
 
-    # TODO: This seems to be an unnecessary intermediate step
-    #   for calling the subscribers. Is the decorator just
-    #   obscuring what is going on? Besides, it seems that all
-    #   "event handlers" need to do the exact same thing,
-    #   i.e. iterate over and call subscribers.
-    # @event_handler("click")
-    # def on_click(self, source, message):
-    #     """
-    #     Main event handler for the "click" event.
-    #
-    #     :param source: Widget that generated the event.
-    #     :param message: Message that triggered the event.
-    #     :return:
-    #     """
-    #     print(f'{self.__class__.__name__}.on_click()')
-    #     print(f'{len(self.subscribers["click"])} subscribers.')
-    #     for subscriber in self.subscribers['click']:
-    #         subscriber(self, message)
-
 
 class Input(Widget):
     """
@@ -836,15 +746,12 @@ class Input(Widget):
         :param message: Message that triggered the event.
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({message})')
+        logger.debug(f'{self.__class__.__name__}.on_change_msg({message})')
 
         # Use super().__setattr__ if you don't want to send an
         # update to the browser.
         # super().__setattr__('value', msg['properties']['value'])
         self.value = message['properties']['value']
-
-        # for subscriber in self.subscribers['change']:
-        #     subscriber(self, message)
 
 
 class TextArea(Widget):
@@ -902,15 +809,12 @@ class TextArea(Widget):
         :param message: Message that triggered the event.
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({message})')
+        logger.debug(f'{self.__class__.__name__}.on_change_msg({message})')
 
         # Use super().__setattr__ if you don't want to send an
         # update to the browser.
         # super().__setattr__('value', msg['properties']['value'])
         self.value = message['properties']['value']
-
-        # for subscriber in self.subscribers['change']:
-        #     subscriber(self, message)
 
 
 class SelectMultiple(Widget):
@@ -1027,13 +931,9 @@ class Dropdown(Widget):
         :param message: Triggering message.
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({message})')
+        logger.debug(f'{self.__class__.__name__}.on_change_msg({message})')
 
         self.value = message['properties']['value']
-
-        # super().__setattr__('value', msg['properties']['value'])
-        # for subscriber in self.subscribers['change']:
-        #     subscriber(self, msg)
 
 
 class Label(Widget):
@@ -1135,15 +1035,11 @@ class CheckBox(Widget):
         :param message: Triggering message.
         :return: None
         """
-        print(f'{self.__class__.__name__}.on_change_msg({message})')
+        logger.debug(f'{self.__class__.__name__}.on_change_msg({message})')
 
         # This will trigger a message back to the browser but wont
         # trigger another change event there.
         self.checked = message['properties']['checked']
-
-        # print(f'{len(self.subscribers["change"])} subscribers.')
-        # for subscriber in self.subscribers['change']:
-        #     subscriber(self, msg)
 
 
 class Image(Widget):
@@ -1231,7 +1127,7 @@ class ProgressBar(Div):
         """
         super().on_change(propname, newval, oldval)
 
-        print(f"{self.__class__.__name__}.on_change('{propname}')")
+        logger.debug(f"{self.__class__.__name__}.on_change('{propname}')")
 
         # Don't go past 100.
         value = self.value if self.value <= 100 else 100
